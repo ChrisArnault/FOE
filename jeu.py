@@ -591,6 +591,8 @@ if __name__ == '__main__':
     try:
         with open('data.pickle', 'rb') as f:
             Data = pickle.load(f)
+        for id in Data:
+            print(id)
     except:
         pass
 
