@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import ttk
 
 Data = {
+    # Base de données
     'terrains_vrais': [
          #. .  .  .  |   .  .  .  .  |   .  .  .  .  |   .  .  .
          0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 0,  # (0, 0),
@@ -34,14 +35,15 @@ Data = {
 
     'batiments': {},
     'last_id': 0,
-    'configuration': {
-        'geom_width': 1700,
-        'geom_height': 1000,
 
-        'rows': 18,
-        'columns': 18,
+    # Configuration
+    'geom_width': 1700,
+    'geom_height': 1000,
 
-        'terrains_possibles': [
+    'rows': 18,
+    'columns': 18,
+
+    'terrains_possibles': [
             #. .  .  .  |   .  .  .  .  |   .  .  .  .  |   .  .  .
             0, 0, 1, 1, 1,  1, 1, 1, 1, 1,  1, 0, 0, 0, 0,  0, 0, 0,  # (2, 9)
             0, 0, 1, 1, 1,  1, 1, 1, 1, 1,  1, 0, 0, 0, 0,  0, 0, 0,  # (2, 9)
@@ -66,17 +68,16 @@ Data = {
             0, 0, 0, 0, 0,  0, 0, 0, 0, 1,  1, 1, 0, 0, 0,  0, 0, 0,  # (9, 3)
         ],
 
-        'size': 20,
-        'margin': 100,
+    'size': 20,
+    'margin': 100,
 
-        'types': ['Habitation', 'Militaire', 'Production', 'Marchandise', 'Culture', 'Décoration', 'Route', 'GM', 'Hotel de Ville', 'Autre', ],
-        'colors': ['cyan', 'orange', 'RoyalBlue1', 'yellow', 'snow', 'green2', 'gray50', 'hot pink', 'red', 'bisque3', ],
+    'types': ['Habitation', 'Militaire', 'Production', 'Marchandise', 'Culture', 'Décoration', 'Route', 'GM', 'Hotel de Ville', 'Autre', ],
+    'colors': ['cyan', 'orange', 'RoyalBlue1', 'yellow', 'snow', 'green2', 'gray50', 'hot pink', 'red', 'bisque3', ],
 
-        'type_terrain': -1,
-        'color_terrain': "gray60",
-        'color_terrain_vide': "gray80",
-        'color_line': "green",
-    }
+    'type_terrain': -1,
+    'color_terrain': "gray60",
+    'color_terrain_vide': "gray80",
+    'color_line': "green",
 }
 
 class Batiment(object):
@@ -87,9 +88,9 @@ class Batiment(object):
         self.rows = rows
         self.columns = columns
         if type == "terrain":
-            self.type = Data['configuration']['type_terrain']
+            self.type = Data['type_terrain']
         else:
-            self.type = Data['configuration']['types'].index(type)
+            self.type = Data['types'].index(type)
         self.row = None
         self.column = None
         self.graphs = None
@@ -101,12 +102,12 @@ class Batiment(object):
         self.row = row
         self.column = column
         Data['batiments'][self.id] = self
-        if self.type == Data['configuration']['type_terrain']:
+        if self.type == Data['type_terrain']:
             """
             on vient d'ajouter le batiment dans le dictionnaire
             il faut maintenant ajouter le "1" dans la matrice "terrains_vrais"
             """
-            i = int(row/4) * Data['configuration']['columns'] + int(column/4)
+            i = int(row/4) * Data['columns'] + int(column/4)
             Data['terrains_vrais'][i] = 1
         else:
             "les batiments existent dans la DTB. ils seront naturellement dessinés au démarrage"
@@ -138,17 +139,17 @@ class Batiment(object):
         return "tag{}".format(self.id)
 
     def draw(self, canvas, x=None, y=None):
-        size = Data['configuration']['size']
-        margin = Data['configuration']['margin']
+        size = Data['size']
+        margin = Data['margin']
         if x == None:
             x = margin + self.column * size
         if y == None:
             y = margin + self.row * size
 
-        if self.type == Data['configuration']['type_terrain']:
-            color = Data['configuration']['color_terrain']
+        if self.type == Data['type_terrain']:
+            color = Data['color_terrain']
         else:
-            color = Data['configuration']['colors'][self.type]
+            color = Data['colors'][self.type]
 
         rect = canvas.create_rectangle(x, y,
                                        x + self.columns * size,
@@ -158,7 +159,7 @@ class Batiment(object):
 
         self.graphs = [rect]
 
-        color = Data['configuration']['color_line']
+        color = Data['color_line']
         for r in range(self.rows):
             if r == 0 : continue
             x1 = x
@@ -185,8 +186,8 @@ class Jeu(tk.Tk):
         super().__init__()
 
         self.title('ForgeOfEmpires')
-        self.geometry("{}x{}".format(Data['configuration']['geom_width'] + 20,
-                                     Data['configuration']['geom_height'] + 20))
+        self.geometry("{}x{}".format(Data['geom_width'] + 20,
+                                     Data['geom_height'] + 20))
         self.resizable(True, True)
         self.grid()
         self.columnconfigure(0, weight=1)
@@ -198,10 +199,10 @@ class Jeu(tk.Tk):
         self.moving_case = None
 
     def canvas_geometry(self):
-        full_width = (2*Data['configuration']['margin'] + Data['configuration']['columns'] * Data['configuration']['size'] * 4)
-        full_height = (2*Data['configuration']['margin'] + Data['configuration']['rows'] * Data['configuration']['size'] * 4)
-        width = Data['configuration']['geom_width'] - 10
-        height = Data['configuration']['geom_height'] - 200
+        full_width = (2*Data['margin'] + Data['columns'] * Data['size'] * 4)
+        full_height = (2*Data['margin'] + Data['rows'] * Data['size'] * 4)
+        width = Data['geom_width'] - 10
+        height = Data['geom_height'] - 200
 
         return width, height, full_width, full_height
 
@@ -240,8 +241,8 @@ class Jeu(tk.Tk):
         def get_case(x, y):
             # retourne la case et le terrain (valide) à la coordonnée x, y
 
-            margin = Data['configuration']['margin']
-            size = Data['configuration']['size']
+            margin = Data['margin']
+            size = Data['size']
 
             x -= margin
             c = int(x / size)
@@ -250,8 +251,8 @@ class Jeu(tk.Tk):
 
             if x < 0 or y < 0: return None
 
-            rows = Data['configuration']['rows']
-            columns = Data['configuration']['columns']
+            rows = Data['rows']
+            columns = Data['columns']
 
             if r < 0 or r >= rows*4: return None
             if c < 0 or c >= columns*4: return None
@@ -259,7 +260,7 @@ class Jeu(tk.Tk):
             tr = int(r / 4)
             tc = int(c / 4)
 
-            terrains_possibles = Data['configuration']['terrains_possibles']
+            terrains_possibles = Data['terrains_possibles']
             i = rows * tr + tc
 
             if terrains_possibles[i] == 0: return None
@@ -269,8 +270,8 @@ class Jeu(tk.Tk):
             return (r, c, tr, tc)
 
         def get_terrain_vrai(tr, tc):
-            rows = Data['configuration']['rows']
-            columns = Data['configuration']['columns']
+            rows = Data['rows']
+            columns = Data['columns']
             terrains_vrais = Data['terrains_vrais']
             i = rows * tr + tc
             if terrains_vrais[i] == 1:
@@ -281,7 +282,7 @@ class Jeu(tk.Tk):
             # Calcule les coordonnées absolues par rapport à la position des scroll bars
             width, height, full_width,  full_height = self.canvas_geometry()
 
-            d = Data['configuration']['margin']
+            d = Data['margin']
             y1, y2 = y_scroll.get()
             Y1, Y2 = int(y1 * (full_height - d)), int(y2 * (full_height - d))
             x1, x2 = x_scroll.get()
@@ -329,7 +330,7 @@ class Jeu(tk.Tk):
 
             # print("after get_case> ", "r=", r, "c=", c, "tr=", tr, "tc=", tc, "type=", bat_type)
 
-            type_terrain = Data['configuration']['type_terrain']
+            type_terrain = Data['type_terrain']
 
             if bat_type != type_terrain:
                 print("on positionne un batiment")
@@ -356,9 +357,9 @@ class Jeu(tk.Tk):
             else:
                 print("on positionne un terrain")
                 # Mise en place d'un terrain
-                rows = Data['configuration']['rows']
-                columns = Data['configuration']['columns']
-                # terrains_possibles = Data['configuration']['terrains_possibles']
+                rows = Data['rows']
+                columns = Data['columns']
+                # terrains_possibles = Data['terrains_possibles']
                 terrains_vrais = Data['terrains_vrais']
                 i = rows * tr + tc
 
@@ -483,7 +484,7 @@ class Jeu(tk.Tk):
         types = tk.StringVar()
         ttk.Label(combo_frame, text='type:').grid(column=0, row=row, sticky=tk.W)
         combo = ttk.Combobox(combo_frame, textvariable=types)
-        combo['values'] = Data['configuration']['types']
+        combo['values'] = Data['types']
         combo['state'] = 'readonly'
         combo.current(newindex=0)
         combo.grid(column=1, row=row, sticky=tk.W)
@@ -519,8 +520,8 @@ class Jeu(tk.Tk):
         self.configure_quit()
 
     def case(self, row, column, line_color='black', fill_color=''):
-        size = Data['configuration']['size']
-        margin = Data['configuration']['margin']
+        size = Data['size']
+        margin = Data['margin']
         x1 = column * size + margin
         y1 = row * size + margin
         x2 = x1 + size
@@ -528,8 +529,8 @@ class Jeu(tk.Tk):
         return self.dessin.create_rectangle(x1, y1, x2, y2, width=1, outline=line_color, fill=fill_color)
 
     def terrain(self, row, column, line_color='black', fill_color=''):
-        size = Data['configuration']['size']
-        margin = Data['configuration']['margin']
+        size = Data['size']
+        margin = Data['margin']
         x1 = 4 * column * size + margin
         y1 = 4 * row * size + margin
         x2 = x1 + 4 * size
@@ -541,12 +542,12 @@ class Jeu(tk.Tk):
         self.dessin.create_rectangle(x1, y1, x2, y2, width=1, outline="red")
 
     def all_terrains(self):
-        color = Data["configuration"]["color_terrain_vide"]
-        line_color = Data["configuration"]["color_line"]
+        color = Data["color_terrain_vide"]
+        line_color = Data["color_line"]
 
-        rows = Data["configuration"]["rows"]
-        columns = Data["configuration"]["columns"]
-        terrains_possibles = Data["configuration"]["terrains_possibles"]
+        rows = Data["rows"]
+        columns = Data["columns"]
+        terrains_possibles = Data["terrains_possibles"]
 
         for r in range(rows):
             for c in range(columns):
@@ -555,11 +556,11 @@ class Jeu(tk.Tk):
                     self.terrain(r, c, line_color=line_color, fill_color=color)
 
     def terrains(self):
-        color = Data["configuration"]["color_terrain"]
-        line_color = Data["configuration"]["color_line"]
+        color = Data["color_terrain"]
+        line_color = Data["color_line"]
 
-        rows = Data["configuration"]["rows"]
-        columns = Data["configuration"]["columns"]
+        rows = Data["rows"]
+        columns = Data["columns"]
         terrains_vrais = Data["terrains_vrais"]
 
         for r in range(rows):
@@ -569,7 +570,7 @@ class Jeu(tk.Tk):
                     self.terrain(r, c, line_color=line_color, fill_color=color)
 
     def draw_grid(self):
-        color = Data['configuration']['color_line']
+        color = Data['color_line']
         self.dessin.create_rectangle(1, 1, 1, 1, width=1, outline="red")
 
         self.all_terrains()
