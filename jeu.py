@@ -503,14 +503,13 @@ class Jeu(tk.Tk):
                 print("bat[", id, "]=", Data['batiments'][id])
             jeu.destroy()
 
-        def quit_save():
+        def save():
             with open('data.pickle', 'wb') as f:
                 pickle.dump(Data, f, pickle.HIGHEST_PROTOCOL)
-            jeu.destroy()
 
         row = 0
         ttk.Button(quit_frame, text="Quit", command=quit).grid(column=0, row=row, sticky=tk.W)
-        ttk.Button(quit_frame, text="Quit & Save", command=quit_save).grid(column=1, row=row, sticky=tk.W)
+        ttk.Button(quit_frame, text="Save", command=save).grid(column=1, row=row, sticky=tk.W)
 
     def configure(self):
         ##----- Création des boutons -----##
