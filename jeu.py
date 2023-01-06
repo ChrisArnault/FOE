@@ -72,11 +72,11 @@ Data = {
     'margin': 100,
 
     'types': ['Habitation', 'Militaire', 'Production', 'Marchandise', 'Culture', 'Décoration', 'Route', 'GM', 'Hotel de Ville', 'Autre', ],
-    'colors': ['cyan', 'orange', 'RoyalBlue1', 'yellow', 'snow', 'green2', 'gray50', 'hot pink', 'red', 'bisque3', ],
+    'colors': ['cyan', 'orange', 'DodgerBlue2', 'yellow', 'snow', 'green2', 'gray50', 'hot pink', 'red', 'purple1', ],
 
     'type_terrain': -1,
-    'color_terrain': "gray60",
-    'color_terrain_vide': "gray80",
+    'color_terrain': "gray65",
+    'color_terrain_vide': "gray85",
     'color_line': "green",
 }
 
@@ -212,6 +212,7 @@ class Jeu(tk.Tk):
         self.configure()
 
         self.batiment = None
+        self.select_batiment = None
         self.moving = None
         self.moving_case = None
 
@@ -245,6 +246,7 @@ class Jeu(tk.Tk):
 
         # print("removing bat", n)
         self.batiment = None
+        self.select_batiment = None
         # self.dessin.delete(self.moving)
         self.moving = None
         self.dessin.delete(self.moving_case)
@@ -328,17 +330,32 @@ class Jeu(tk.Tk):
                 if result == None: return
                 r, c, tr, tc = result
 
+                found = None
                 for id in Data['batiments']:
                     b = Data['batiments'][id]
-                    if r >= b.row and r < b.row + b.rows and c >= b.column and c < b.column + b.columns:
-                        print("moving..", id, b.nom)
-                        self.select_batiment = b
-                        self.combo_nom.set(b.nom)
-                        self.combo_id.set(b.id)
-                        self.combo_rows.set(b.rows)
-                        self.combo_columns.set(b.columns)
-                        self.combo_type.set(Data['types'][b.type])
-                        return
+                    if b.type != Data['type_terrain']:
+                        if r >= b.row and r < b.row + b.rows and c >= b.column and c < b.column + b.columns:
+                            found = b
+                            break
+
+                if found == None:
+                    for id in Data['batiments']:
+                        b = Data['batiments'][id]
+                        if b.type == Data['type_terrain']:
+                            if r >= b.row and r < b.row + b.rows and c >= b.column and c < b.column + b.columns:
+                                found = b
+                                break
+
+                if found != None:
+                    # print("moving..", id, b.nom)
+                    self.select_batiment = found
+                    self.combo_nom.set(found.nom)
+                    self.combo_id.set(found.id)
+                    self.combo_rows.set(found.rows)
+                    self.combo_columns.set(found.columns)
+                    self.combo_type.set(Data['types'][found.type])
+                    return
+
                 self.combo_nom.set('')
                 self.combo_id.set('')
                 self.combo_rows.set('')
@@ -456,7 +473,7 @@ class Jeu(tk.Tk):
                         self.up(r, c)
 
         def move(e):
-            print("Move")
+            # print("Move")
             action("move", e)
 
         def button1_down(e):
@@ -465,7 +482,7 @@ class Jeu(tk.Tk):
                 bat = self.select_batiment
                 bat.undraw(self.dessin)
                 bat.remove()
-            print("Button down", bat)
+                print("Remove batiment", bat)
             action("down", e)
 
         def button2_down(e):
@@ -478,12 +495,20 @@ class Jeu(tk.Tk):
             print("Button up")
             action("up", e)
 
+        def leave(e):
+            self.combo_nom.set('')
+            self.combo_id.set('')
+            self.combo_rows.set('')
+            self.combo_columns.set('')
+            self.combo_type.set(Data['types'][0])
+
         # Bind the move function
         self.dessin.bind("<Motion>", move)
         self.dessin.bind("<Button-1>", button1_down)
         self.dessin.bind("<Button-2>", button2_down)
         self.dessin.bind("<Button-3>", button3_down)
         self.dessin.bind("<ButtonRelease>", button_up)
+        self.dessin.bind("<Leave>", leave)
 
         y_scroll = tk.Scrollbar(frame, orient="vertical", command=self.dessin.yview)
         y_scroll.grid(row=0, column=1, sticky="ns")
@@ -566,8 +591,10 @@ class Jeu(tk.Tk):
         quit_frame.grid(row=2, column=0)
 
         def quit():
+            """
             for id in Data['batiments']:
                 print("bat[", id, "]=", Data['batiments'][id])
+            """
             jeu.destroy()
 
         def save():
@@ -663,10 +690,14 @@ if __name__ == '__main__':
     try:
         with open('data.pickle', 'rb') as f:
             Data = pickle.load(f)
+        """
         for id in Data:
             print(id)
+        """
     except:
         pass
+
+    # Data['colors'] = ['cyan', 'orange', 'DodgerBlue2', 'yellow', 'snow', 'green2', 'gray50', 'hot pink', 'red', 'purple1', ]
 
     jeu = Jeu()
     jeu.run()
