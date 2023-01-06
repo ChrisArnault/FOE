@@ -32,24 +32,6 @@ Data = {
          0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 0,  # (0, 0),
     ],
 
-    'terrains': {
-        'row0': 2,
-        'lines': [
-            (3, 13),
-            (3, 13),
-            (3, 13),
-
-            (3, 14),
-            (3, 14),
-            (3, 14),
-            (3, 14),
-            (3, 14),
-
-            (3, 12),
-
-            (5, 9),
-            (5, 9),
-        ]},
     'batiments': {},
     'last_id': 0,
     'configuration': {
@@ -84,18 +66,11 @@ Data = {
             0, 0, 0, 0, 0,  0, 0, 0, 0, 1,  1, 1, 0, 0, 0,  0, 0, 0,  # (9, 3)
         ],
 
-        'lines': [(2, 9),  (2, 9),  (1, 15), (1, 15), (0, 16),
-                  (0, 18), (0, 18), (0, 18), (0, 18), (0, 18),
-                  (0, 18), (0, 18), (0, 18), (0, 18), (2, 16),
-                  (2, 14), (4, 12), (9, 3)],
-
         'size': 20,
         'margin': 100,
 
-        'types': ['Habitation', 'Militaire', 'Production', 'Marchandise', 'Culture', 'Décoration',
-                 'Route',   'GM',       'Hotel de Ville', 'Autre', ],
-        'colors': ['cyan', 'orange', 'RoyalBlue1', 'yellow', 'snow', 'green2',
-                  'gray50', 'hot pink', 'red', 'bisque3', ],
+        'types': ['Habitation', 'Militaire', 'Production', 'Marchandise', 'Culture', 'Décoration', 'Route', 'GM', 'Hotel de Ville', 'Autre', ],
+        'colors': ['cyan', 'orange', 'RoyalBlue1', 'yellow', 'snow', 'green2', 'gray50', 'hot pink', 'red', 'bisque3', ],
 
         'type_terrain': -1,
         'color_terrain': "gray60",
@@ -103,9 +78,6 @@ Data = {
         'color_line': "green",
     }
 }
-
-# Data['configuration']['rows'] = len(Data['configuration']['lines']) * 4 + 8
-# Data['configuration']['cols'] = max(Data['configuration']['lines'], key=lambda k: k[1])[1] * 4 + 8
 
 class Batiment(object):
     def __init__(self, nom, rows, columns, type):
@@ -134,7 +106,7 @@ class Batiment(object):
             on vient d'ajouter le batiment dans le dictionnaire
             il faut maintenant ajouter le "1" dans la matrice "terrains_vrais"
             """
-            i = row * Data['configuration']['columns'] + column
+            i = int(row/4) * Data['configuration']['columns'] + int(column/4)
             Data['terrains_vrais'][i] = 1
         else:
             "les batiments existent dans la DTB. ils seront naturellement dessinés au démarrage"
@@ -351,11 +323,11 @@ class Jeu(tk.Tk):
 
             if result == None: return
 
-            print("on est sur la zone valide")
+            # print("on est sur la zone valide")
 
             r, c, tr, tc = result
 
-            print("after get_case> ", "r=", r, "c=", c, "tr=", tr, "tc=", tc, "type=", bat_type)
+            # print("after get_case> ", "r=", r, "c=", c, "tr=", tr, "tc=", tc, "type=", bat_type)
 
             type_terrain = Data['configuration']['type_terrain']
 
@@ -518,8 +490,8 @@ class Jeu(tk.Tk):
 
         row += 1
 
-        install_button = ttk.Button(combo_frame, text="Install", command=install).grid(column=0, row=row, sticky=tk.W)
-        terrain_button = ttk.Button(combo_frame, text="Terrain", command=install_terrain).grid(column=1, row=row, sticky=tk.W)
+        terrain_button = ttk.Button(combo_frame, text="Terrain", command=install_terrain).grid(column=0, row=row, sticky=tk.W)
+        install_button = ttk.Button(combo_frame, text="Install", command=install).grid(column=1, row=row, sticky=tk.W)
 
     def configure_quit(self):
         quit_frame = tk.Frame(self)
