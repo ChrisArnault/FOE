@@ -177,6 +177,23 @@ class Batiment(object):
 
         return rect
 
+    def undraw(self, canvas):
+        size = Data['size']
+        margin = Data['margin']
+
+        for obj in self.graphs:
+            canvas.delete(obj)
+
+        self.graphs = []
+
+    def remove(self):
+        if self.type == Data['type_terrain']:
+            i = int(self.row/4) * Data['rows'] + int(self.column/4)
+            Data['terrains_vrais'][i] = 0
+
+        Data['batiments'].pop(self.id)
+
+
 class Terrain(Batiment):
     def __init__(self):
         super().__init__("terrain", 4, 4, "terrain")
@@ -197,6 +214,13 @@ class Jeu(tk.Tk):
         self.batiment = None
         self.moving = None
         self.moving_case = None
+
+        """
+        self.combo_nom = None
+        self.combo_rows = None
+        self.combo_columns = None
+        self.combo_type = None
+        """
 
     def canvas_geometry(self):
         full_width = (2*Data['margin'] + Data['columns'] * Data['size'] * 4)
@@ -298,7 +322,30 @@ class Jeu(tk.Tk):
         def action(mode, e):
             x, y = scrolling(e)
 
-            if self.batiment == None: return
+            if self.batiment == None:
+                result = get_case(x, y)
+
+                if result == None: return
+                r, c, tr, tc = result
+
+                for id in Data['batiments']:
+                    b = Data['batiments'][id]
+                    if r >= b.row and r < b.row + b.rows and c >= b.column and c < b.column + b.columns:
+                        print("moving..", id, b.nom)
+                        self.select_batiment = b
+                        self.combo_nom.set(b.nom)
+                        self.combo_id.set(b.id)
+                        self.combo_rows.set(b.rows)
+                        self.combo_columns.set(b.columns)
+                        self.combo_type.set(Data['types'][b.type])
+                        return
+                self.combo_nom.set('')
+                self.combo_id.set('')
+                self.combo_rows.set('')
+                self.combo_columns.set('')
+                self.combo_type.set(Data['types'][0])
+
+                return
 
             # animation sous la souris, anciennes valeurs
             global ex, ey
@@ -409,17 +456,33 @@ class Jeu(tk.Tk):
                         self.up(r, c)
 
         def move(e):
+            print("Move")
             action("move", e)
 
-        def button_down(e):
+        def button1_down(e):
+            bat = None
+            if self.select_batiment != None:
+                bat = self.select_batiment
+                bat.undraw(self.dessin)
+                bat.remove()
+            print("Button down", bat)
+            action("down", e)
+
+        def button2_down(e):
+            action("down", e)
+
+        def button3_down(e):
             action("down", e)
 
         def button_up(e):
+            print("Button up")
             action("up", e)
 
         # Bind the move function
         self.dessin.bind("<Motion>", move)
-        self.dessin.bind("<Button>", button_down)
+        self.dessin.bind("<Button-1>", button1_down)
+        self.dessin.bind("<Button-2>", button2_down)
+        self.dessin.bind("<Button-3>", button3_down)
         self.dessin.bind("<ButtonRelease>", button_up)
 
         y_scroll = tk.Scrollbar(frame, orient="vertical", command=self.dessin.yview)
@@ -437,16 +500,16 @@ class Jeu(tk.Tk):
 
         def install():
             self.up()
-            n = nom.get()
+            n = self.combo_nom.get()
             try:
-                r = int(rows.get())
+                r = int(self.combo_rows.get())
             except:
                 r = 0
             try:
-                c = int(columns.get())
+                c = int(self.combo_columns.get())
             except:
                 c = 0
-            t = types.get()
+            t = self.combo_type.get()
 
             if n != '' and r > 0 and c > 0:
                 print("install> ", "nom=", n, "rows=", r, "columns=", c)
@@ -465,25 +528,29 @@ class Jeu(tk.Tk):
         combo_frame.grid(row=1, column=0)
 
         row = 0
-        nom = tk.StringVar()
+        self.combo_nom = tk.StringVar()
         ttk.Label(combo_frame, text='Nom:').grid(column=0, row=row, sticky=tk.W)
-        ttk.Entry(combo_frame, width=30, textvariable=nom).grid(column=1, row=row, columnspan=3, sticky=tk.W)
+        ttk.Entry(combo_frame, width=30, textvariable=self.combo_nom).grid(column=1, row=row, columnspan=3, sticky=tk.W)
+
+        self.combo_id = tk.StringVar()
+        ttk.Label(combo_frame, text='Id:').grid(column=4, row=row, sticky=tk.W)
+        ttk.Entry(combo_frame, width=5, textvariable=self.combo_id).grid(column=5, row=row, sticky=tk.W)
 
         row += 1
 
-        rows = tk.StringVar()
+        self.combo_rows = tk.StringVar()
         ttk.Label(combo_frame, text='rows:').grid(column=0, row=row, sticky=tk.W)
-        ttk.Entry(combo_frame, width=8, textvariable=rows).grid(column=1, row=row, sticky=tk.W)
+        ttk.Entry(combo_frame, width=8, textvariable=self.combo_rows).grid(column=1, row=row, sticky=tk.W)
 
-        columns = tk.StringVar()
+        self.combo_columns = tk.StringVar()
         ttk.Label(combo_frame, text='columns:').grid(column=2, row=row, sticky=tk.W)
-        ttk.Entry(combo_frame, width=8, textvariable=columns).grid(column=3, row=row, sticky=tk.W)
+        ttk.Entry(combo_frame, width=8, textvariable=self.combo_columns).grid(column=3, row=row, sticky=tk.W)
 
         row += 1
 
-        types = tk.StringVar()
+        self.combo_type = tk.StringVar()
         ttk.Label(combo_frame, text='type:').grid(column=0, row=row, sticky=tk.W)
-        combo = ttk.Combobox(combo_frame, textvariable=types)
+        combo = ttk.Combobox(combo_frame, textvariable=self.combo_type)
         combo['values'] = Data['types']
         combo['state'] = 'readonly'
         combo.current(newindex=0)
@@ -491,8 +558,8 @@ class Jeu(tk.Tk):
 
         row += 1
 
-        terrain_button = ttk.Button(combo_frame, text="Terrain", command=install_terrain).grid(column=0, row=row, sticky=tk.W)
-        install_button = ttk.Button(combo_frame, text="Install", command=install).grid(column=1, row=row, sticky=tk.W)
+        ttk.Button(combo_frame, text="Terrain", command=install_terrain).grid(column=0, row=row, sticky=tk.W)
+        ttk.Button(combo_frame, text="Install", command=install).grid(column=1, row=row, sticky=tk.W)
 
     def configure_quit(self):
         quit_frame = tk.Frame(self)
@@ -573,11 +640,17 @@ class Jeu(tk.Tk):
         self.dessin.create_rectangle(1, 1, 1, 1, width=1, outline="red")
 
         self.all_terrains()
-        self.terrains()
+        # self.terrains()
 
         for id in Data['batiments']:
             b = Data['batiments'][id]
-            b.draw(self.dessin)
+            if b.type == Data['type_terrain']:
+                b.draw(self.dessin)
+
+        for id in Data['batiments']:
+            b = Data['batiments'][id]
+            if b.type != Data['type_terrain']:
+                b.draw(self.dessin)
 
         self.dessin.addtag_all("all")
 
@@ -597,4 +670,5 @@ if __name__ == '__main__':
 
     jeu = Jeu()
     jeu.run()
+    # jeu.draw_grid()
 
