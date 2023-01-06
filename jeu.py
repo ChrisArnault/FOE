@@ -216,13 +216,6 @@ class Jeu(tk.Tk):
         self.moving = None
         self.moving_case = None
 
-        """
-        self.combo_nom = None
-        self.combo_rows = None
-        self.combo_columns = None
-        self.combo_type = None
-        """
-
     def canvas_geometry(self):
         full_width = (2*Data['margin'] + Data['columns'] * Data['size'] * 4)
         full_height = (2*Data['margin'] + Data['rows'] * Data['size'] * 4)
@@ -263,6 +256,25 @@ class Jeu(tk.Tk):
                                 height=height,
                                 scrollregion=(0, 0, full_width, full_height))
         self.dessin.grid(row=0, column=0)
+
+        def find_batiment(r, c):
+            found = None
+            for id in Data['batiments']:
+                b = Data['batiments'][id]
+                if b.type != Data['type_terrain']:
+                    if r >= b.row and r < b.row + b.rows and c >= b.column and c < b.column + b.columns:
+                        found = b
+                        break
+
+            if found == None:
+                for id in Data['batiments']:
+                    b = Data['batiments'][id]
+                    if b.type == Data['type_terrain']:
+                        if r >= b.row and r < b.row + b.rows and c >= b.column and c < b.column + b.columns:
+                            found = b
+                            break
+
+            return found
 
         def get_case(x, y):
             # retourne la case et le terrain (valide) à la coordonnée x, y
@@ -324,31 +336,18 @@ class Jeu(tk.Tk):
         def action(mode, e):
             x, y = scrolling(e)
 
-            if self.batiment == None:
+            if self.select_batiment != None:
+                return
+            elif self.batiment == None:
                 result = get_case(x, y)
 
                 if result == None: return
                 r, c, tr, tc = result
 
-                found = None
-                for id in Data['batiments']:
-                    b = Data['batiments'][id]
-                    if b.type != Data['type_terrain']:
-                        if r >= b.row and r < b.row + b.rows and c >= b.column and c < b.column + b.columns:
-                            found = b
-                            break
-
-                if found == None:
-                    for id in Data['batiments']:
-                        b = Data['batiments'][id]
-                        if b.type == Data['type_terrain']:
-                            if r >= b.row and r < b.row + b.rows and c >= b.column and c < b.column + b.columns:
-                                found = b
-                                break
+                found = find_batiment(r, c)
 
                 if found != None:
-                    # print("moving..", id, b.nom)
-                    self.select_batiment = found
+                    # print("moving...", found.id, found.nom)
                     self.combo_nom.set(found.nom)
                     self.combo_id.set(found.id)
                     self.combo_rows.set(found.rows)
@@ -476,37 +475,88 @@ class Jeu(tk.Tk):
             # print("Move")
             action("move", e)
 
-        def button1_down(e):
-            bat = None
-            if self.select_batiment != None:
-                bat = self.select_batiment
-                bat.undraw(self.dessin)
-                bat.remove()
-                print("Remove batiment", bat)
-            action("down", e)
-
-        def button2_down(e):
-            action("down", e)
-
-        def button3_down(e):
-            action("down", e)
-
         def button_up(e):
             print("Button up")
             action("up", e)
 
         def leave(e):
+            if self.select_batiment != None: return
             self.combo_nom.set('')
             self.combo_id.set('')
             self.combo_rows.set('')
             self.combo_columns.set('')
             self.combo_type.set(Data['types'][0])
 
-        # Bind the move function
+        self.popup_event = None
+        popup = tk.Menu(self, tearoff=0)
+
+        # Adding Menu Items
+        def command_move():
+            x, y = scrolling(self.popup_event)
+            result = get_case(x, y)
+            if result == None: return
+            r, c, tr, tc = result
+            b = find_batiment(r, c)
+            if b.type != Data['type_terrain']:
+                self.batiment = b
+                b.row = None
+                b.column = None
+                b.undraw(self.dessin)
+                b.remove()
+
+        def command_copy():
+            x, y = scrolling(self.popup_event)
+            result = get_case(x, y)
+            if result == None: return
+            r, c, tr, tc = result
+            b = find_batiment(r, c)
+            if b.type != Data['type_terrain']:
+                b = Batiment(b.nom, b.rows, b.columns, Data['types'][b.type])
+                self.batiment = b
+
+        def command_change():
+            x, y = scrolling(self.popup_event)
+            result = get_case(x, y)
+            if result == None: return
+            r, c, tr, tc = result
+            b = find_batiment(r, c)
+            if b.type != Data['type_terrain']:
+                self.select_batiment = b
+                self.combo_nom.set(b.nom)
+                self.combo_id.set(b.id)
+                self.combo_rows.set(b.rows)
+                self.combo_columns.set(b.columns)
+                self.combo_type.set(Data['types'][b.type])
+
+        def command_delete():
+            x, y = scrolling(self.popup_event)
+            result = get_case(x, y)
+            if result == None: return
+            r, c, tr, tc = result
+            b = find_batiment(r, c)
+            if b != None:
+                b.undraw(self.dessin)
+                b.remove()
+                print("Remove batiment", b)
+
+        popup.add_command(label="Move", command=command_move)
+        popup.add_command(label="Copy", command=command_copy)
+        popup.add_command(label="Change", command=command_change)
+        popup.add_command(label="Delete", command=command_delete)
+        popup.add_separator()
+
+        def menu_popup(event):
+            # display the popup menu
+            try:
+                self.popup_event = event
+                popup.tk_popup(event.x_root, event.y_root, 0)
+                print("Popup>", self.batiment, self.select_batiment)
+            finally:
+                # Release the grab
+                popup.grab_release()
+
         self.dessin.bind("<Motion>", move)
-        self.dessin.bind("<Button-1>", button1_down)
-        self.dessin.bind("<Button-2>", button2_down)
-        self.dessin.bind("<Button-3>", button3_down)
+        self.bind("<Button-3>", menu_popup)
         self.dessin.bind("<ButtonRelease>", button_up)
         self.dessin.bind("<Leave>", leave)
 
@@ -549,6 +599,21 @@ class Jeu(tk.Tk):
             print("install> terrain")
             self.batiment = Terrain()
 
+        def change_batiment():
+            if self.select_batiment != None:
+                b = self.select_batiment
+                nom = self.combo_nom.get()
+                # rows = self.combo_rows.get()
+                # columns = self.combo_columns.get()
+                type = self.combo_type.get()
+                b.nom = nom
+                # b.rows = rows
+                # b.columns = columns
+                b.type = Data['types'].index(type)
+                b.draw(self.dessin)
+            self.select_batiment = None
+            self.batiment = None
+
         combo_frame = tk.Frame(self)
         combo_frame.grid(row=1, column=0)
 
@@ -585,6 +650,7 @@ class Jeu(tk.Tk):
 
         ttk.Button(combo_frame, text="Terrain", command=install_terrain).grid(column=0, row=row, sticky=tk.W)
         ttk.Button(combo_frame, text="Install", command=install).grid(column=1, row=row, sticky=tk.W)
+        ttk.Button(combo_frame, text="Change", command=change_batiment).grid(column=2, row=row, sticky=tk.W)
 
     def configure_quit(self):
         quit_frame = tk.Frame(self)
