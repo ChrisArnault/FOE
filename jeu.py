@@ -34,6 +34,7 @@ Data = {
     ],
 
     'batiments': {},
+    'poped': {},
     'last_id': 0,
 
     # Configuration
@@ -43,13 +44,16 @@ Data = {
     'rows': 18,
     'columns': 18,
 
-    'terrains_possibles': [
+    'essais_rows': 5,
+    'essais_columns': 5,
+
+'terrains_possibles': [
             #. .  .  .  |   .  .  .  .  |   .  .  .  .  |   .  .  .
             0, 0, 1, 1, 1,  1, 1, 1, 1, 1,  1, 0, 0, 0, 0,  0, 0, 0,  # (2, 9)
             0, 0, 1, 1, 1,  1, 1, 1, 1, 1,  1, 0, 0, 0, 0,  0, 0, 0,  # (2, 9)
             0, 1, 1, 1, 1,  1, 1, 1, 1, 1,  1, 1, 1, 1, 1,  1, 0, 0,  # (1, 15)
             0, 1, 1, 1, 1,  1, 1, 1, 1, 1,  1, 1, 1, 1, 1,  1, 0, 0,  # (1, 15)
-            1, 1, 1, 1, 1,  1, 1, 1, 1, 1,  1, 1, 1, 1, 1,  1, 0, 0,  # (0, 16)
+            1, 1, 1, 1, 1,  1, 1, 1, 1, 1,  1, 1, 1, 1, 1,  1, 1, 1,  # (0, 16)
 
             1, 1, 1, 1, 1,  1, 1, 1, 1, 1,  1, 1, 1, 1, 1,  1, 1, 1,  # (0, 18)
             1, 1, 1, 1, 1,  1, 1, 1, 1, 1,  1, 1, 1, 1, 1,  1, 1, 1,  # (0, 18)
@@ -122,6 +126,7 @@ class Batiment(object):
             if self.column > c + other.columns: return False
             if c >= self.column and c < self.column + self.columns: return True
             if self.column >= c and self.column < c + other.columns: return True
+
         def test_rows(r):
             if r > self.row + self.rows: return False
             if self.row > r + other.rows: return False
@@ -138,9 +143,8 @@ class Batiment(object):
     def tag(self):
         return "tag{}".format(self.id)
 
-    def draw(self, canvas, x=None, y=None):
+    def draw(self, canvas, margin, x=None, y=None):
         size = Data['size']
-        margin = Data['margin']
         if x == None:
             x = margin + self.column * size
         if y == None:
@@ -198,6 +202,29 @@ class Terrain(Batiment):
     def __init__(self):
         super().__init__("terrain", 4, 4, "terrain")
 
+
+def case_at(canvas, margin, row, column, line_color='black', fill_color=''):
+    size = Data['size']
+    x1 = column * size + margin
+    y1 = row * size + margin
+    x2 = x1 + size
+    y2 = y1 + size
+    return canvas.create_rectangle(x1, y1, x2, y2, width=1, outline=line_color, fill=fill_color)
+
+
+def terrain_at(canvas, margin, row, column, line_color='black', fill_color=''):
+    size = Data['size']
+    x1 = 4 * column * size + margin
+    y1 = 4 * row * size + margin
+    x2 = x1 + 4 * size
+    y2 = y1 + 4 * size
+    canvas.create_rectangle(x1, y1, x2, y2, width=1, outline=line_color, fill=fill_color)
+    for r in range(4):
+        for c in range(4):
+            case_at(canvas, margin, row * 4 + r, column * 4 + c, line_color=line_color)
+    canvas.create_rectangle(x1, y1, x2, y2, width=1, outline="red")
+
+
 class Jeu(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -215,6 +242,7 @@ class Jeu(tk.Tk):
         self.select_batiment = None
         self.moving = None
         self.moving_case = None
+        self.essais_canvas = None
 
     def canvas_geometry(self):
         full_width = (2*Data['margin'] + Data['columns'] * Data['size'] * 4)
@@ -235,7 +263,7 @@ class Jeu(tk.Tk):
                 print("Install batiment> r=", r, "c=", c)
                 self.batiment.install(r, c)
 
-            self.batiment.draw(self.dessin)
+            self.batiment.draw(self.dessin, Data['margin'])
 
         # print("removing bat", n)
         self.batiment = None
@@ -244,6 +272,30 @@ class Jeu(tk.Tk):
         self.moving = None
         self.dessin.delete(self.moving_case)
         self.moving_case = None
+
+    def open_essais(self):
+        essais = tk.Toplevel(self)
+
+        size = Data['size']
+
+        essais_rows = Data['essais_rows']
+        essais_columns = Data['essais_columns']
+
+        height = 4 * essais_rows * size
+        width = 4 * essais_columns * size
+
+        essais.geometry("{}x{}".format(width + 30, height + 30))
+        essais.title("Essais")
+
+        self.essais_canvas = tk.Canvas(essais, bg="ivory", width=width + 20, height=height + 20)
+        self.essais_canvas.pack()
+
+        color = Data["color_terrain_vide"]
+        line_color = Data["color_line"]
+
+        for r in range(essais_rows):
+            for c in range(essais_columns):
+                terrain_at(self.essais_canvas, 10, r, c, line_color=line_color, fill_color=color)
 
     def configure_canvas(self):
         frame = tk.Frame(self)
@@ -262,9 +314,13 @@ class Jeu(tk.Tk):
             for id in Data['batiments']:
                 b = Data['batiments'][id]
                 if b.type != Data['type_terrain']:
-                    if r >= b.row and r < b.row + b.rows and c >= b.column and c < b.column + b.columns:
-                        found = b
-                        break
+                    try:
+                        if r >= b.row and r < b.row + b.rows and c >= b.column and c < b.column + b.columns:
+                            found = b
+                            break
+                    except:
+                        print("Erreur dans fin_batiment> id=", id)
+                        return None
 
             if found == None:
                 for id in Data['batiments']:
@@ -367,7 +423,7 @@ class Jeu(tk.Tk):
             global ex, ey
 
             if self.moving == None:
-                self.moving = self.batiment.draw(self.dessin, x, y)
+                self.moving = self.batiment.draw(self.dessin, Data['margin'], x, y)
             else:
                 objs = self.dessin.find_withtag(self.batiment.tag())
                 for obj in objs:
@@ -396,7 +452,7 @@ class Jeu(tk.Tk):
             type_terrain = Data['type_terrain']
 
             if bat_type != type_terrain:
-                print("on positionne un batiment")
+                # print("on positionne un batiment")
                 tr_vrai, tc_vrai = get_terrain_vrai(tr, tc)
                 if tr_vrai == None: return
 
@@ -412,13 +468,13 @@ class Jeu(tk.Tk):
                 if self.moving_case != None:
                     self.dessin.delete(self.moving_case)
                 self.moving_case = self.case(r, c, line_color='yellow')
-                print(mode, "x=", x, "y=", y, "nom=", n, "r=", r, "c=", c, "tr=", tr, "tc=", tc)
+                # print("action>", mode, "x=", x, "y=", y, "nom=", n, "r=", r, "c=", c, "tr=", tr, "tc=", tc)
 
                 if mode == "up":
                     self.up(r, c)
 
             else:
-                print("on positionne un terrain")
+                # print("on positionne un terrain")
                 # Mise en place d'un terrain
                 rows = Data['rows']
                 columns = Data['columns']
@@ -467,7 +523,7 @@ class Jeu(tk.Tk):
 
                     self.moving_case = self.case(r, c, line_color='yellow')
 
-                    print(mode, "x=", x, "y=", y, "nom=", n, "r=", r, "c=", c, "tr=", tr, "tc=", tc)
+                    # print("action>", mode, "x=", x, "y=", y, "nom=", n, "r=", r, "c=", c, "tr=", tr, "tc=", tc)
                     if mode == "up":
                         self.up(r, c)
 
@@ -476,16 +532,18 @@ class Jeu(tk.Tk):
             action("move", e)
 
         def button_up(e):
-            print("Button up")
+            # print("Button up")
             action("up", e)
 
         def leave(e):
             if self.select_batiment != None: return
+            """
             self.combo_nom.set('')
             self.combo_id.set('')
             self.combo_rows.set('')
             self.combo_columns.set('')
             self.combo_type.set(Data['types'][0])
+            """
 
         self.popup_event = None
         popup = tk.Menu(self, tearoff=0)
@@ -528,6 +586,55 @@ class Jeu(tk.Tk):
                 self.combo_columns.set(b.columns)
                 self.combo_type.set(Data['types'][b.type])
 
+        def command_pop():
+            def find_pop_position(b):
+                if len(Data['poped']) == 0: return (0, 0)
+                for r in range(Data['essais_rows']*4):
+                    if r + b.rows > Data['essais_rows']*4:
+                        break
+
+                    for c in range(Data['essais_columns']*4):
+                        if c + b.columns > Data['essais_columns']*4:
+                            break
+
+                        print("find_pop_position> test r,c:", "r=", r, "c=", c)
+                        collision = False
+                        for id in Data['poped']:
+                            poped = Data['poped'][id]
+                            print("find_pop_position> test, id:", "r=", r, "c=", c, "id=", id, "nom=", poped.nom)
+                            if not poped.collision(b, r, c):
+                                print("find_pop_position> pas de collision pour:", "r=", r, "c=", c, "id=", id, "nom=", poped.nom)
+                            else:
+                                collision = True
+                                break
+                        if not collision:
+                            return (r, c)
+
+                return None
+
+            if self.essais_canvas == None:
+                self.open_essais()
+
+            x, y = scrolling(self.popup_event)
+            result = get_case(x, y)
+            if result == None: return
+            r, c, tr, tc = result
+            b = find_batiment(r, c)
+            if b.type != Data['type_terrain']:
+                print("command_pop> id=", b.id)
+                # b.row = None
+                # b.column = None
+                found = find_pop_position(b)
+                if found != None:
+                    r, c = found
+                    print("command_pop> il y a de la place", "r=", r, "c=", c)
+                    b.row = r
+                    b.column = c
+                    Data['poped'][b.id] = b
+                    b.undraw(self.dessin)
+                    b.draw(self.essais_canvas, 10)
+                    b.remove()
+
         def command_delete():
             x, y = scrolling(self.popup_event)
             result = get_case(x, y)
@@ -535,13 +642,18 @@ class Jeu(tk.Tk):
             r, c, tr, tc = result
             b = find_batiment(r, c)
             if b != None:
+                self.batiment = None
                 b.undraw(self.dessin)
                 b.remove()
                 print("Remove batiment", b)
+                b.row = row
+                b.column = column
+                Data['poped'][b.id] = b
 
         popup.add_command(label="Move", command=command_move)
         popup.add_command(label="Copy", command=command_copy)
         popup.add_command(label="Change", command=command_change)
+        popup.add_command(label="Pop", command=command_pop)
         popup.add_command(label="Delete", command=command_delete)
         popup.add_separator()
 
@@ -610,7 +722,7 @@ class Jeu(tk.Tk):
                 # b.rows = rows
                 # b.columns = columns
                 b.type = Data['types'].index(type)
-                b.draw(self.dessin)
+                b.draw(self.dessin, Data['margin'])
             self.select_batiment = None
             self.batiment = None
 
@@ -651,6 +763,7 @@ class Jeu(tk.Tk):
         ttk.Button(combo_frame, text="Terrain", command=install_terrain).grid(column=0, row=row, sticky=tk.W)
         ttk.Button(combo_frame, text="Install", command=install).grid(column=1, row=row, sticky=tk.W)
         ttk.Button(combo_frame, text="Change", command=change_batiment).grid(column=2, row=row, sticky=tk.W)
+        # ttk.Button(combo_frame, text="Essais", command=self.open_essais).grid(column=3, row=row, sticky=tk.W)
 
     def configure_quit(self):
         quit_frame = tk.Frame(self)
@@ -679,26 +792,12 @@ class Jeu(tk.Tk):
         self.configure_quit()
 
     def case(self, row, column, line_color='black', fill_color=''):
-        size = Data['size']
         margin = Data['margin']
-        x1 = column * size + margin
-        y1 = row * size + margin
-        x2 = x1 + size
-        y2 = y1 + size
-        return self.dessin.create_rectangle(x1, y1, x2, y2, width=1, outline=line_color, fill=fill_color)
+        case_at(self.dessin, margin, row, column, line_color=line_color, fill_color=fill_color)
 
     def terrain(self, row, column, line_color='black', fill_color=''):
-        size = Data['size']
         margin = Data['margin']
-        x1 = 4 * column * size + margin
-        y1 = 4 * row * size + margin
-        x2 = x1 + 4 * size
-        y2 = y1 + 4 * size
-        self.dessin.create_rectangle(x1, y1, x2, y2, width=1, outline=line_color, fill=fill_color)
-        for r in range(4):
-            for c in range(4):
-                self.case(row * 4 + r, column * 4 + c, line_color=line_color)
-        self.dessin.create_rectangle(x1, y1, x2, y2, width=1, outline="red")
+        terrain_at(self.dessin, margin, row, column, line_color=line_color, fill_color=fill_color)
 
     def all_terrains(self):
         color = Data["color_terrain_vide"]
@@ -738,12 +837,12 @@ class Jeu(tk.Tk):
         for id in Data['batiments']:
             b = Data['batiments'][id]
             if b.type == Data['type_terrain']:
-                b.draw(self.dessin)
+                b.draw(self.dessin, Data['margin'])
 
         for id in Data['batiments']:
             b = Data['batiments'][id]
             if b.type != Data['type_terrain']:
-                b.draw(self.dessin)
+                b.draw(self.dessin, Data['margin'])
 
         self.dessin.addtag_all("all")
 
@@ -764,6 +863,10 @@ if __name__ == '__main__':
         pass
 
     # Data['colors'] = ['cyan', 'orange', 'DodgerBlue2', 'yellow', 'snow', 'green2', 'gray50', 'hot pink', 'red', 'purple1', ]
+
+    Data['essais_rows'] = 5
+    Data['essais_columns'] = 5
+    Data['poped'] = dict()
 
     jeu = Jeu()
     jeu.run()
