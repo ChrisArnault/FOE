@@ -6,6 +6,21 @@ import numpy as np
 import tkinter as tk
 from tkinter import ttk
 
+
+"""
+Data décrit toutes les données qui seront sauvegardées dans data.pickle
+Si on veut modifier une des donnée:
+1) ajouter immédiatement après avoir lu les données par 
+
+        with open('data.pickle', 'rb') as f:
+            Data = pickle.load(f)
+            
+    une ligne du style
+    
+    Data['size'] = 12
+2) exécuter en sauvegardant
+3) commenter la ligne ajoutée
+"""
 Data = {
     # Base de données
     'terrains_vrais': [
@@ -72,7 +87,7 @@ Data = {
             0, 0, 0, 0, 0,  0, 0, 0, 0, 1,  1, 1, 0, 0, 0,  0, 0, 0,  # (9, 3)
         ],
 
-    'size': 20,
+    'size': 10,
     'margin': 100,
 
     'types': ['Habitation', 'Militaire', 'Production', 'Marchandise', 'Culture', 'Décoration', 'Route', 'GM', 'Hotel de Ville', 'Autre', ],
@@ -88,16 +103,17 @@ class Batiment(object):
     def __init__(self, nom, rows, columns, type):
         self.id = Data['last_id']
         Data['last_id'] += 1
-        self.nom = nom
-        self.rows = rows
-        self.columns = columns
+        self.nom = nom           # le nom
+        self.rows = rows         # nombre de lignes occupées par ce bât
+        self.columns = columns   # nombre de colonnes occupées par ce bât
         if type == "terrain":
             self.type = Data['type_terrain']
         else:
             self.type = Data['types'].index(type)
-        self.row = None
-        self.column = None
-        self.graphs = None
+        self.row = None           # position d'installation
+        self.column = None        # position d'installation
+        self.graphs = None        # tous les graphiques utilisés pour dessiner le bât
+                                  # nécessaire pour effacer ou déplacer
 
     def __repr__(self):
         return "Bat {} @ r={} c={} t={}".format(self.nom, self.row, self.column, self.type)
@@ -118,13 +134,21 @@ class Batiment(object):
             pass
 
     def collision(self, other, r, c):
+        """
+        Lors d'un déplacement du bât, à la position (r, c) on vérifie si il y a une collision avec
+        un autre bât other installé
+        """
         # if self.row == None or self.column == None: return False
         # if other.row == None or other.column == None: return False
 
         def test_columns(c):
+            # la colonne est en dehors du bât
             if c > self.column + self.columns: return False
+            # le bât est en dehors de other
             if self.column > c + other.columns: return False
+            # c est dans à l'intérieur du bât
             if c >= self.column and c < self.column + self.columns: return True
+            # le bât se supperpose à other
             if self.column >= c and self.column < c + other.columns: return True
 
         def test_rows(r):
@@ -144,6 +168,7 @@ class Batiment(object):
         return "tag{}".format(self.id)
 
     def draw(self, canvas, margin, x=None, y=None):
+        # dessin d'un bâtiment
         size = Data['size']
         if x == None:
             x = margin + self.column * size
@@ -155,14 +180,18 @@ class Batiment(object):
         else:
             color = Data['colors'][self.type]
 
+        # on trace le contour complet du bât
         rect = canvas.create_rectangle(x, y,
                                        x + self.columns * size,
                                        y + self.rows * size,
                                        width=1, outline="red", fill=color,
                                        tag=self.tag())
 
+        # on accumule tous les éléments du dessin utilisés pour ce bât
+        # ceci sere nécessaire pour effacer ou déplacer
         self.graphs = [rect]
 
+        # on trace la grille de toutes les cases occupées par le bât
         color = Data['color_line']
         for r in range(self.rows):
             if r == 0 : continue
@@ -182,6 +211,7 @@ class Batiment(object):
         return rect
 
     def undraw(self, canvas):
+        # pour effacer un bât il suffit d'effacer tous les graphs
         size = Data['size']
         margin = Data['margin']
 
@@ -191,6 +221,7 @@ class Batiment(object):
         self.graphs = []
 
     def remove(self):
+        # suppression du bât de la BdB
         if self.type == Data['type_terrain']:
             i = int(self.row/4) * Data['rows'] + int(self.column/4)
             Data['terrains_vrais'][i] = 0
@@ -204,6 +235,9 @@ class Terrain(Batiment):
 
 
 def case_at(canvas, margin, row, column, line_color='black', fill_color=''):
+    """
+    dessine une case à la position (row, column)
+    """
     size = Data['size']
     x1 = column * size + margin
     y1 = row * size + margin
@@ -213,6 +247,9 @@ def case_at(canvas, margin, row, column, line_color='black', fill_color=''):
 
 
 def terrain_at(canvas, margin, row, column, line_color='black', fill_color=''):
+    """
+    dessine un terrain à la position (row, column)
+    """
     size = Data['size']
     x1 = 4 * column * size + margin
     y1 = 4 * row * size + margin
@@ -224,14 +261,24 @@ def terrain_at(canvas, margin, row, column, line_color='black', fill_color=''):
             case_at(canvas, margin, row * 4 + r, column * 4 + c, line_color=line_color)
     canvas.create_rectangle(x1, y1, x2, y2, width=1, outline="red")
 
-
+"""
+Plateau de jeu
+"""
 class Jeu(tk.Tk):
     def __init__(self):
         super().__init__()
 
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+
         self.title('ForgeOfEmpires')
-        self.geometry("{}x{}".format(Data['geom_width'] + 20,
-                                     Data['geom_height'] + 20))
+        full_width = Data['rows'] * 4 * Data['size'] + 2 * Data['margin'] + 30
+        full_height = Data['columns'] * 4 * Data['size'] + 2 * Data['margin'] + 30
+        width = min(full_width, screen_width)
+        height = min(full_height, screen_height)
+        Data['geom_width'] = width
+        Data['geom_height'] = height
+        self.geometry("{}x{}".format(width, height))
         self.resizable(True, True)
         self.grid()
         self.columnconfigure(0, weight=1)
@@ -245,22 +292,26 @@ class Jeu(tk.Tk):
         self.essais_canvas = None
 
     def canvas_geometry(self):
-        full_width = (2*Data['margin'] + Data['columns'] * Data['size'] * 4)
-        full_height = (2*Data['margin'] + Data['rows'] * Data['size'] * 4)
-        width = Data['geom_width'] - 10
+        full_width = Data['geom_width']
+        full_height = Data['geom_height']
+        width = Data['geom_width'] - 30
         height = Data['geom_height'] - 200
 
         return width, height, full_width, full_height
 
     def up(self, r=None, c=None):
+        """
+        Click up
+        """
         if self.batiment != None:
+            # on est en train de déplacer un bâtiment
             objs = self.dessin.find_withtag(self.batiment.tag())
             # print("Moving2> tag=", self.batiment.tag(), "objs=", objs)
             for obj in objs:
                 self.dessin.delete(obj)
 
             if r != None:
-                print("Install batiment> r=", r, "c=", c)
+                # print("Install batiment> r=", r, "c=", c)
                 self.batiment.install(r, c)
 
             self.batiment.draw(self.dessin, Data['margin'])
@@ -319,7 +370,7 @@ class Jeu(tk.Tk):
                             found = b
                             break
                     except:
-                        print("Erreur dans fin_batiment> id=", id)
+                        # print("Erreur dans fin_batiment> id=", id)
                         return None
 
             if found == None:
@@ -461,13 +512,16 @@ class Jeu(tk.Tk):
                     b = Data['batiments'][id]
                     if b.type == type_terrain: continue
                     if b.collision(self.batiment, r, c):
-                        print("collision entre ", b.id, b.nom, "et", self.batiment.id, self.batiment.nom)
+                        # print("collision entre ", b.id, b.nom, "et", self.batiment.id, self.batiment.nom)
                         return
 
                 # Mise en place d'un batiment normal
                 if self.moving_case != None:
                     self.dessin.delete(self.moving_case)
+                    self.moving_case = None
+
                 self.moving_case = self.case(r, c, line_color='yellow')
+
                 # print("action>", mode, "x=", x, "y=", y, "nom=", n, "r=", r, "c=", c, "tr=", tr, "tc=", tc)
 
                 if mode == "up":
@@ -510,9 +564,6 @@ class Jeu(tk.Tk):
                                 break
 
                 if found:
-                    if self.moving_case != None:
-                        self.dessin.delete(self.moving_case)
-
                     """
                     Les contraintes de placements sont déjà validées
                     - r et c doivent multiples de 4
@@ -520,6 +571,9 @@ class Jeu(tk.Tk):
                     - on ne peut placer un terrain que contre un terrain existant
                     Ensuite, on sa modifier la ligne de configuration
                     """
+
+                    if self.moving_case != None:
+                        self.dessin.delete(self.moving_case)
 
                     self.moving_case = self.case(r, c, line_color='yellow')
 
@@ -597,13 +651,14 @@ class Jeu(tk.Tk):
                         if c + b.columns > Data['essais_columns']*4:
                             break
 
-                        print("find_pop_position> test r,c:", "r=", r, "c=", c)
+                        # print("find_pop_position> test r,c:", "r=", r, "c=", c)
                         collision = False
                         for id in Data['poped']:
                             poped = Data['poped'][id]
-                            print("find_pop_position> test, id:", "r=", r, "c=", c, "id=", id, "nom=", poped.nom)
+                            # print("find_pop_position> test, id:", "r=", r, "c=", c, "id=", id, "nom=", poped.nom)
                             if not poped.collision(b, r, c):
-                                print("find_pop_position> pas de collision pour:", "r=", r, "c=", c, "id=", id, "nom=", poped.nom)
+                                # print("find_pop_position> pas de collision pour:", "r=", r, "c=", c, "id=", id, "nom=", poped.nom)
+                                pass
                             else:
                                 collision = True
                                 break
@@ -621,13 +676,13 @@ class Jeu(tk.Tk):
             r, c, tr, tc = result
             b = find_batiment(r, c)
             if b.type != Data['type_terrain']:
-                print("command_pop> id=", b.id)
+                # print("command_pop> id=", b.id)
                 # b.row = None
                 # b.column = None
                 found = find_pop_position(b)
                 if found != None:
                     r, c = found
-                    print("command_pop> il y a de la place", "r=", r, "c=", c)
+                    # print("command_pop> il y a de la place", "r=", r, "c=", c)
                     b.row = r
                     b.column = c
                     Data['poped'][b.id] = b
@@ -645,7 +700,7 @@ class Jeu(tk.Tk):
                 self.batiment = None
                 b.undraw(self.dessin)
                 b.remove()
-                print("Remove batiment", b)
+                # print("Remove batiment", b)
                 b.row = row
                 b.column = column
                 Data['poped'][b.id] = b
@@ -662,7 +717,7 @@ class Jeu(tk.Tk):
             try:
                 self.popup_event = event
                 popup.tk_popup(event.x_root, event.y_root, 0)
-                print("Popup>", self.batiment, self.select_batiment)
+                # print("Popup>", self.batiment, self.select_batiment)
             finally:
                 # Release the grab
                 popup.grab_release()
@@ -699,7 +754,7 @@ class Jeu(tk.Tk):
             t = self.combo_type.get()
 
             if n != '' and r > 0 and c > 0:
-                print("install> ", "nom=", n, "rows=", r, "columns=", c)
+                #print("install> ", "nom=", n, "rows=", r, "columns=", c)
                 self.batiment = Batiment(n, r, c, t)
 
         def install_terrain():
@@ -708,7 +763,7 @@ class Jeu(tk.Tk):
             r = 4
             c = 4
 
-            print("install> terrain")
+            # print("install> terrain")
             self.batiment = Terrain()
 
         def change_batiment():
@@ -793,7 +848,8 @@ class Jeu(tk.Tk):
 
     def case(self, row, column, line_color='black', fill_color=''):
         margin = Data['margin']
-        case_at(self.dessin, margin, row, column, line_color=line_color, fill_color=fill_color)
+        drawn = case_at(self.dessin, margin, row, column, line_color=line_color, fill_color=fill_color)
+        return drawn
 
     def terrain(self, row, column, line_color='black', fill_color=''):
         margin = Data['margin']
@@ -855,6 +911,12 @@ if __name__ == '__main__':
     try:
         with open('data.pickle', 'rb') as f:
             Data = pickle.load(f)
+
+        """"
+        Data['size'] = 16
+        Data['margin'] = 30
+        """
+
         """
         for id in Data:
             print(id)
@@ -863,10 +925,6 @@ if __name__ == '__main__':
         pass
 
     # Data['colors'] = ['cyan', 'orange', 'DodgerBlue2', 'yellow', 'snow', 'green2', 'gray50', 'hot pink', 'red', 'purple1', ]
-
-    Data['essais_rows'] = 5
-    Data['essais_columns'] = 5
-    Data['poped'] = dict()
 
     jeu = Jeu()
     jeu.run()
