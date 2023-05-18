@@ -119,8 +119,8 @@ Data = {
                'purple1',        # Tour
                'gray65',         # Bâtiment à production aléatoire
                'gray50',         # Autre
-               'gray50',         # Autre
-               'gray50',],       # Autre
+               'gray65',         # Terrain
+               'gray50',],       # DoubleRoute
 
     'color_terrain': "gray65",
     'color_terrain_vide': "gray85",
@@ -259,7 +259,7 @@ class Batiment(object):
         t = find_from_wiki(title)
         if t is not None:
             if t == "Erreur":
-                print("Attributs inaccessibles nom=", title, "id=", self.id)
+                # print("Attributs inaccessibles nom=", title, "id=", self.id)
                 return False
             title = t
         """
@@ -678,7 +678,7 @@ class Jeu(tk.Tk):
                 self.combo_id.set('')
                 self.combo_rows.set('')
                 self.combo_columns.set('')
-                self.combo_type.set(Data['realtypes'][0])
+                self.combo_type.set('')
                 self.combo_rue.set(0)
 
                 return
@@ -1224,20 +1224,23 @@ if __name__ == '__main__':
                       'DoubleRoute',
                       ]
 
-        Data['colors'] = ['cyan',  # Bâtiments résidentiels
-                   'orange',  # Bâtiments militaires
-                   'DodgerBlue2',  # Bâtiments de production
-                   'yellow',  # Bâtiments de marchandises
-                   'snow',  # Bâtiments culturels
-                   'green2',  # Décorations
-                   'gray50',  # Route
-                   'hot pink',  # Grand Monument
-                   'red',  # Hotel de Ville
-                   'purple1',  # Tour
-                   'gray65',  # Bâtiment à production aléatoire
-                   'gray50',  # Autre
-                   'gray50',  # Autre
-                   'gray50', ]  # Autre
+        Data['colors'] = ['cyan',           # Bâtiments résidentiels
+               'orange',         # Bâtiments militaires
+               'DodgerBlue2',    # Bâtiments de production
+               'yellow',         # Bâtiments de marchandises
+               'snow',           # Bâtiments culturels
+               'green2',         # Décorations
+               'gray50',         # Route
+               'hot pink',       # Grand Monument
+               'red',            # Hotel de Ville
+               'MediumPurple1',  # Tour
+               'MediumPurple3',         # Bâtiment à production aléatoire
+               'gray50',         # Autre
+               'gray80',         # Terrain
+               'gray50',]       # DoubleRoute
+
+        Data['color_terrain'] = "gray80"
+        Data['color_terrain_vide'] = "gray99"
         """
 
     except:
