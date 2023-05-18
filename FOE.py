@@ -103,9 +103,24 @@ Data = {
                   'Tour',
                   'Bâtiment à production aléatoire',
                   'Autre',
-                  'Terrain'],
+                  'Terrain',
+                  'DoubleRoute',
+                  ],
 
-    'colors': ['cyan', 'orange', 'DodgerBlue2', 'yellow', 'snow', 'green2', 'gray50', 'hot pink', 'red', 'purple1', 'gray65'],
+    'colors': ['cyan',           # Bâtiments résidentiels
+               'orange',         # Bâtiments militaires
+               'DodgerBlue2',    # Bâtiments de production
+               'yellow',         # Bâtiments de marchandises
+               'snow',           # Bâtiments culturels
+               'green2',         # Décorations
+               'gray50',         # Route
+               'hot pink',       # Grand Monument
+               'red',            # Hotel de Ville
+               'purple1',        # Tour
+               'gray65',         # Bâtiment à production aléatoire
+               'gray50',         # Autre
+               'gray50',         # Autre
+               'gray50',],       # Autre
 
     'color_terrain': "gray65",
     'color_terrain_vide': "gray85",
@@ -154,29 +169,31 @@ def find_batiment(r, c):
 class Batiment(object):
     def __init__(self, nom, rows=0, columns=0, type=0, rue=0):
         self.nom = nom           # le nom
+        self.id = None
 
         if type == "Terrain":
             self.type = Data['realtypes'].index(type)
             self.rows = 4  # nombre de lignes occupées par ce bât
             self.columns = 4  # nombre de colonnes occupées par ce bât
-        elif type == "route":
+            self.rue = 0
+        elif type == "Route":
             self.type = Data['realtypes'].index(type)
             self.rows = 1  # nombre de lignes occupées par ce bât
             self.columns = 1  # nombre de colonnes occupées par ce bât
+            self.rue = 0
+        elif type == "DoubleRoute":
+            self.type = Data['realtypes'].index(type)
+            self.rows = 2  # nombre de lignes occupées par ce bât
+            self.columns = 2  # nombre de colonnes occupées par ce bât
+            self.rue = 0
         else:
             if not self.attributs(nom):
+                print("Impossible d'obtenir les attributs pour le bâtiment ", nom)
                 return
-
-            """
-            self.type = Data['realtypes'].index(type)
-            self.rows = rows         # nombre de lignes occupées par ce bât
-            self.columns = columns   # nombre de colonnes occupées par ce bât
-            """
 
         self.id = Data['last_id']
         Data['last_id'] += 1
 
-        self.rue = rue
         self.row = None           # position d'installation
         self.column = None        # position d'installation
         self.graphs = None        # tous les graphiques utilisés pour dessiner le bât
@@ -253,7 +270,7 @@ class Batiment(object):
         if response.status_code == 404:
             response = requests.get(prefix + title)
             if response.status_code == 404:
-                print("Attributs inaccessibles nom=", title, "id=", self.id)
+                print("Attributs inaccessibles nom =", title)
                 return False
 
         s = response.content.decode('utf-8')
@@ -273,7 +290,8 @@ class Batiment(object):
                                                                                 type, rue)
 
     def is_route(self):
-        return self.type == Data['realtypes'].index('Route')
+        return self.type == Data['realtypes'].index('Route') or \
+               self.type == Data['realtypes'].index('DoubleRoute')
 
     def is_connected(self):
         return self.rue > 0
@@ -334,10 +352,8 @@ class Batiment(object):
 
         # print("try_connect>", row, column)
         # rangée au dessus du bât
-        if test_is_route(row - 1, column - 1): return True
         for cc in range(self.columns):
             if test_is_route(row - 1, column + cc): return True
-        if test_is_route(row - 1, column + self.columns): return True
 
         # colonne à gauche du bât
         for rr in range(self.rows):
@@ -348,10 +364,8 @@ class Batiment(object):
             if test_is_route(row + rr, column + self.columns): return True
 
         # rangée en dessous du bât
-        if test_is_route(row + self.rows, column - 1): return True
         for cc in range(self.columns):
             if test_is_route(row + self.rows, column + cc): return True
-        if test_is_route(row + self.rows, column + self.columns): return True
 
         return False
 
@@ -365,6 +379,10 @@ class Batiment(object):
     def draw(self, canvas, margin, x=None, y=None):
         # dessin d'un bâtiment
         size = Data['size']
+
+        # if self.column is None and self.row is None:
+        #     return
+
         if x == None:
             x = margin + self.column * size
         if y == None:
@@ -429,6 +447,16 @@ class Terrain(Batiment):
         super().__init__("Terrain", 4, 4, "Terrain")
 
 
+class Route(Batiment):
+    def __init__(self):
+        super().__init__("Route", 1, 1, "Route")
+
+
+class DoubleRoute(Batiment):
+    def __init__(self):
+        super().__init__("DoubleRoute", 2, 2, "DoubleRoute")
+
+
 def draw_case_at(canvas, margin, row, column, line_color='black', fill_color=''):
     """
     dessine une case à la position (row, column)
@@ -463,8 +491,8 @@ class Jeu(tk.Tk):
     def __init__(self):
         super().__init__()
 
-        screen_width = self.winfo_screenwidth()
-        screen_height = self.winfo_screenheight()
+        screen_width = self.winfo_screenwidth() - 20
+        screen_height = self.winfo_screenheight() - 120
 
         self.title('ForgeOfEmpires')
         full_width = Data['rows'] * 4 * Data['size'] + 2 * Data['margin'] + 30
@@ -489,8 +517,8 @@ class Jeu(tk.Tk):
     def canvas_geometry(self):
         full_width = Data['geom_width']
         full_height = Data['geom_height']
-        width = Data['geom_width'] - 30
-        height = Data['geom_height'] - 200
+        width = Data['geom_width'] - 30    # place réservée à l'ascenseur
+        height = Data['geom_height'] - 210 # place réservée au combo des paramètres
 
         return width, height, full_width, full_height
 
@@ -599,16 +627,20 @@ class Jeu(tk.Tk):
             # Calcule les coordonnées absolues par rapport à la position des scroll bars
             width, height, full_width,  full_height = self.canvas_geometry()
 
-            d = Data['margin']
-            y1, y2 = y_scroll.get()
-            Y1, Y2 = int(y1 * (full_height - d)), int(y2 * (full_height - d))
+            size = Data['size']
+            margin = Data['margin']
+            full_height = Data['columns'] * 4 * size + margin
+            full_width = Data['rows'] * 4 * size + margin
+
+            y1, y2 = y_scroll.get()    # les valeurs ymin ou ymax de la fenêtre visible : [0 .. 1]
+            Y1, Y2 = int(y1 * full_height), int(y2 * full_height)
             x1, x2 = x_scroll.get()
             X1, X2 = int(x1 * full_width), int(x2 * full_width)
 
-            x = e.x + X1 - 2
+            x = e.x + X1
             y = e.y + Y1
 
-            # print("action> e.y=", e.y , "y1=", int(y1*100), "y2=", int(y2*100), "Y1=", Y1, "Y2=", Y2, "y=", y)
+            # print("scrolling> e.y=", e.y, "y1=", int(y1*100), "y2=", int(y2*100), "Y1=", Y1, "Y2=", Y2, "y=", y, "x=", x)
 
             return x, y
 
@@ -932,28 +964,29 @@ class Jeu(tk.Tk):
 
             n = self.combo_nom.get()
 
-            """
-            try:
-                r = int(self.combo_rows.get())
-            except:
-                r = 0
-
-            try:
-                c = int(self.combo_columns.get())
-            except:
-                c = 0
-
-            t = self.combo_type.get()
-
-            try:
-                rue = int(self.combo_rue.get())
-            except:
-                rue = 0
-            """
-
             if n != '':
                 #print("install> ", "nom=", n)
-                self.batiment = Batiment(n)
+                b = Batiment(n)
+                if b.id is not None:
+                    self.batiment = Batiment(n)
+
+        def install_route():
+            self.up()
+            n = "Route"
+            r = 1
+            c = 1
+
+            # print("install> route")
+            self.batiment = Route()
+
+        def install_double_route():
+            self.up()
+            n = "DoubleRoute"
+            r = 2
+            c = 2
+
+            # print("install> double route")
+            self.batiment = DoubleRoute()
 
         def install_terrain():
             self.up()
@@ -963,6 +996,12 @@ class Jeu(tk.Tk):
 
             # print("install> terrain")
             self.batiment = Terrain()
+
+        def reset():
+            # print("reset>")
+            # self.up()
+            self.moving == None
+            self.batiment = None
 
         def change_batiment():
             if self.select_batiment != None:
@@ -984,66 +1023,90 @@ class Jeu(tk.Tk):
         combo_frame = tk.Frame(self)
         combo_frame.grid(row=1, column=0)
 
+        sticky = tk.W+tk.E+tk.N+tk.S
+
         row = 0
         column = 0
 
         self.combo_nom = tk.StringVar()
-        ttk.Label(combo_frame, text='Nom:').grid(column=column, row=row, sticky=tk.W)
+        ttk.Label(combo_frame, text='Nom:').grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
-        ttk.Entry(combo_frame, width=30, textvariable=self.combo_nom).grid(column=column, row=row, columnspan=3, sticky=tk.W)
-        column += 1
+        ttk.Entry(combo_frame, width=30, textvariable=self.combo_nom).grid(column=column, row=row, columnspan=4, sticky=sticky, padx=4, pady=4)
+        column += 4
 
         self.combo_id = tk.StringVar()
-        ttk.Label(combo_frame, text='Id:').grid(column=column, row=row, sticky=tk.W)
+        ttk.Label(combo_frame, text='Id:').grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
-        ttk.Entry(combo_frame, width=5, textvariable=self.combo_id).grid(column=column, row=row, sticky=tk.W)
+        ttk.Entry(combo_frame, width=5, textvariable=self.combo_id).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
 
         row += 1
         column = 0
 
         self.combo_rows = tk.StringVar()
-        ttk.Label(combo_frame, text='rows:').grid(column=column, row=row, sticky=tk.W)
+        ttk.Label(combo_frame, text='rows:').grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
-        ttk.Entry(combo_frame, width=8, textvariable=self.combo_rows).grid(column=column, row=row, sticky=tk.W)
+        ttk.Entry(combo_frame, width=4, textvariable=self.combo_rows).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
 
         self.combo_columns = tk.StringVar()
-        ttk.Label(combo_frame, text='columns:').grid(column=column, row=row, sticky=tk.W)
+        ttk.Label(combo_frame, text='columns:').grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
-        ttk.Entry(combo_frame, width=8, textvariable=self.combo_columns).grid(column=column, row=row, sticky=tk.W)
+        ttk.Entry(combo_frame, width=4, textvariable=self.combo_columns).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
 
         self.combo_rue = tk.StringVar()
-        ttk.Label(combo_frame, text='rue:').grid(column=column, row=row, sticky=tk.W)
+        ttk.Label(combo_frame, text='rue:').grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
-        ttk.Entry(combo_frame, width=8, textvariable=self.combo_rue).grid(column=column, row=row, sticky=tk.W)
+        ttk.Entry(combo_frame, width=4, textvariable=self.combo_rue).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
 
         row += 1
         column = 0
 
         self.combo_type = tk.StringVar()
-        ttk.Label(combo_frame, text='type:').grid(column=column, row=row, sticky=tk.W)
+        ttk.Label(combo_frame, text='type:').grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
         combo = ttk.Combobox(combo_frame, textvariable=self.combo_type)
         combo['values'] = Data['realtypes']
         combo['state'] = 'readonly'
         combo.current(newindex=0)
-        combo.grid(column=column, row=row, sticky=tk.W)
-        column += 1
+        combo.grid(column=column, row=row, columnspan=3, sticky=sticky, padx=4, pady=4)
+        column += 3
 
         row += 1
         column = 0
 
-        ttk.Button(combo_frame, text="Terrain", command=install_terrain).grid(column=column, row=row, sticky=tk.W)
+        ttk.Label(combo_frame, text='Install:').grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
-        ttk.Button(combo_frame, text="Install", command=install).grid(column=column, row=row, sticky=tk.W)
+        ttk.Button(combo_frame, text="Route", command=install_route).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
-        ttk.Button(combo_frame, text="Change", command=change_batiment).grid(column=column, row=row, sticky=tk.W)
+        ttk.Button(combo_frame, text="Double Route", command=install_double_route).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
-        # ttk.Button(combo_frame, text="Essais", command=self.open_essais).grid(column=column, row=row, sticky=tk.W)
+        ttk.Button(combo_frame, text="Terrain", command=install_terrain).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
+        column += 1
+        ttk.Button(combo_frame, text="Bâtiment", command=install).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
+        column += 1
+        ttk.Label(combo_frame, text='Action').grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
+        column += 1
+        ttk.Button(combo_frame, text="Reset", command=reset).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
+        column += 1
+        ttk.Button(combo_frame, text="Change", command=change_batiment).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
+        column += 1
+        # ttk.Button(combo_frame, text="Essais", command=self.open_essais).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         # column += 1
+
+        row += 1
+        column = 0
+
+        self.combo_error = tk.StringVar()
+        ttk.Label(combo_frame, text='Erreur:').grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
+        column += 1
+        ttk.Entry(combo_frame, width=50, textvariable=self.combo_error).grid(column=column, row=row, columnspan=4, sticky=sticky, padx=4, pady=4)
+        column += 4
+
+
+
 
     def configure_quit(self):
         quit_frame = tk.Frame(self)
@@ -1140,10 +1203,36 @@ if __name__ == '__main__':
         alltypes = []
 
         """
-        for id in Data['batiments']:
-            b = Data['batiments'][id]
+        Data['realtypes'] = ['Bâtiments résidentiels',
+                      'Bâtiments militaires',
+                      'Bâtiments de production',
+                      'Bâtiments de marchandises',
+                      'Bâtiments culturels',
+                      'Décorations',
+                      'Route',
+                      'Grand Monument',
+                      'Hotel de Ville',
+                      'Tour',
+                      'Bâtiment à production aléatoire',
+                      'Autre',
+                      'Terrain',
+                      'DoubleRoute',
+                      ]
 
-            # print(b)
+        Data['colors'] = ['cyan',  # Bâtiments résidentiels
+                   'orange',  # Bâtiments militaires
+                   'DodgerBlue2',  # Bâtiments de production
+                   'yellow',  # Bâtiments de marchandises
+                   'snow',  # Bâtiments culturels
+                   'green2',  # Décorations
+                   'gray50',  # Route
+                   'hot pink',  # Grand Monument
+                   'red',  # Hotel de Ville
+                   'purple1',  # Tour
+                   'gray65',  # Bâtiment à production aléatoire
+                   'gray50',  # Autre
+                   'gray50',  # Autre
+                   'gray50', ]  # Autre
         """
 
     except:
