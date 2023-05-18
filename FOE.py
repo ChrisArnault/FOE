@@ -152,9 +152,7 @@ def find_batiment(r, c):
 
 
 class Batiment(object):
-    def __init__(self, nom, rows, columns, type, rue):
-        self.id = Data['last_id']
-        Data['last_id'] += 1
+    def __init__(self, nom, rows=0, columns=0, type=0, rue=0):
         self.nom = nom           # le nom
 
         if type == "Terrain":
@@ -166,11 +164,17 @@ class Batiment(object):
             self.rows = 1  # nombre de lignes occupées par ce bât
             self.columns = 1  # nombre de colonnes occupées par ce bât
         else:
-            self.attributs(nom)
+            if not self.attributs(nom):
+                return
 
+            """
             self.type = Data['realtypes'].index(type)
             self.rows = rows         # nombre de lignes occupées par ce bât
             self.columns = columns   # nombre de colonnes occupées par ce bât
+            """
+
+        self.id = Data['last_id']
+        Data['last_id'] += 1
 
         self.rue = rue
         self.row = None           # position d'installation
@@ -232,7 +236,7 @@ class Batiment(object):
             else:
                 t = "Autre"
             # print("type:", t)
-            self.type = t
+            self.type = Data["realtypes"].index(t)
 
         """
         t = find_from_wiki(title)
@@ -923,8 +927,12 @@ class Jeu(tk.Tk):
 
         def install():
             self.up()
+
+            # installation d'un nouveau bâtiment => on va chercher dans la base Wiki
+
             n = self.combo_nom.get()
 
+            """
             try:
                 r = int(self.combo_rows.get())
             except:
@@ -941,11 +949,11 @@ class Jeu(tk.Tk):
                 rue = int(self.combo_rue.get())
             except:
                 rue = 0
+            """
 
-
-            if n != '' and r > 0 and c > 0:
-                #print("install> ", "nom=", n, "rows=", r, "columns=", c)
-                self.batiment = Batiment(n, r, c, t, rue)
+            if n != '':
+                #print("install> ", "nom=", n)
+                self.batiment = Batiment(n)
 
         def install_terrain():
             self.up()
