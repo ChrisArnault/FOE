@@ -188,7 +188,7 @@ class Batiment(object):
             self.rue = 0
         else:
             if not self.attributs(nom):
-                print("Impossible d'obtenir les attributs pour le bâtiment ", nom)
+                Error("Impossible d'obtenir les attributs pour le bâtiment " + nom)
                 return
 
         self.id = Data['last_id']
@@ -683,6 +683,7 @@ class Jeu(tk.Tk):
 
                 return
 
+            Error("")
             # animation sous la souris, anciennes valeurs
             global ex, ey
 
@@ -1193,6 +1194,10 @@ class Jeu(tk.Tk):
     def run(self):
         ##----- Programme principal -----##
         self.mainloop()  # Boucle d'attente des événements
+
+
+def Error(text):
+    jeu.combo_error.set(text)
 
 
 if __name__ == '__main__':
