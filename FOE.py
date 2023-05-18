@@ -105,20 +105,8 @@ Data = {
                   'Autre',
                   'Terrain'],
 
-    'types': ['Habitation',
-              'Militaire',
-              'Production',
-              'Marchandise',
-              'Culture',
-              'Décoration',
-              'Route',
-              'GM',
-              'Hotel de Ville',
-              'Autre',
-              'Terrain'],
     'colors': ['cyan', 'orange', 'DodgerBlue2', 'yellow', 'snow', 'green2', 'gray50', 'hot pink', 'red', 'purple1', 'gray65'],
 
-    'connection': ['oui', 'non'],
     'color_terrain': "gray65",
     'color_terrain_vide': "gray85",
     'color_line': "green",
@@ -164,40 +152,36 @@ def find_batiment(r, c):
 
 
 class Batiment(object):
-    def __init__(self, nom, rows, columns, type, connected):
+    def __init__(self, nom, rows, columns, type, rue):
         self.id = Data['last_id']
         Data['last_id'] += 1
         self.nom = nom           # le nom
 
         if type == "Terrain":
-            self.type = Data['type'].index(type)
+            self.type = Data['realtypes'].index(type)
             self.rows = 4  # nombre de lignes occupées par ce bât
             self.columns = 4  # nombre de colonnes occupées par ce bât
         elif type == "route":
-            self.type = Data['Route']
+            self.type = Data['realtypes'].index(type)
             self.rows = 1  # nombre de lignes occupées par ce bât
             self.columns = 1  # nombre de colonnes occupées par ce bât
         else:
             self.attributs(nom)
 
-            self.type = Data['types'].index(type)
+            self.type = Data['realtypes'].index(type)
             self.rows = rows         # nombre de lignes occupées par ce bât
             self.columns = columns   # nombre de colonnes occupées par ce bât
 
-        self.connected = connected
+        self.rue = rue
         self.row = None           # position d'installation
         self.column = None        # position d'installation
         self.graphs = None        # tous les graphiques utilisés pour dessiner le bât
                                   # nécessaire pour effacer ou déplacer
 
         self.saved = False
-        self.att_rue = 0
-        self.att_columns = 0
-        self.att_rows = 0
-        self.att_type = ""
 
     def is_terrain(self):
-        return self.type == Data['types'].index('Terrain')
+        return self.type == Data['realtypes'].index('Terrain')
 
 
     def attributs(self, title):
@@ -207,35 +191,35 @@ class Batiment(object):
             elif "Rue requise:" in s:
                 i = s.index("Rue requise:")
             else:
-                self.att_rue = 0
+                self.rue = 0
                 return
 
             s = s[i:]
             j = None
             if "Aucune rue requise" in s:
                 j = s.index("Aucune rue requise")
-                self.att_rue = 0
+                self.rue = 0
             else:
                 i = s.index("</div>")
                 s = s[i + 6:]
                 i = s.index("\n")
                 m = re.match("(\d+).(\d+)", s[:i].strip())
-                self.att_rue = int(m.group(1))
+                self.rue = int(m.group(1))
 
         def taille(s):
             if "Taille:" in s:
                 i = s.index("Taille:")
             else:
-                self.att_rows = 0
-                self.att_columns = 0
+                self.rows = 0
+                self.columns = 0
                 return
             s = s[i:]
             i = s.index("</div>")
             s = s[i + 6:]
             i = s.index("\n")
             m = re.match("(\d+).(\d+)", s[:i].strip())
-            self.att_columns = int(m.group(1))
-            self.att_rows = int(m.group(2))
+            self.columns = int(m.group(1))
+            self.rows = int(m.group(2))
 
         def type(s):
             if "Type:" in s:
@@ -248,7 +232,7 @@ class Batiment(object):
             else:
                 t = "Autre"
             # print("type:", t)
-            self.att_type = t
+            self.type = t
 
         """
         t = find_from_wiki(title)
@@ -272,25 +256,23 @@ class Batiment(object):
         rue(s)
         taille(s)
         type(s)
-        print("Attributs> name='{}' rue='{}' RxC='{}x{}' Type={}".format(self.nom, self.att_rue, self.att_rows, self.att_columns, self.att_type))
+        print("Attributs> name='{}' rue='{}' RxC='{}x{}' Type={}".format(self.nom, self.rue, self.rows, self.columns, self.type))
         return True
 
     def __repr__(self):
         rue = 0
-        if hasattr(self, "att_rue"): rue = self.att_rue
-        type = Data['types'][self.type]
-        if hasattr(self, "att_type"): type = self.att_type
+        if hasattr(self, "rue"): rue = self.rue
+        type = Data['realtypes'][self.type]
         return "Batiment [{} id={} rs,cs=({},{}) r,c=({},{}) type=[{}] rue={}]".format(self.nom, self.id,
                                                                                 self.rows, self.columns,
                                                                                 self.row, self.column,
                                                                                 type, rue)
 
     def is_route(self):
-        route = Data['types'].index('Route')
-        return self.type == route
+        return self.type == Data['realtypes'].index('Route')
 
     def is_connected(self):
-        return self.connected
+        return self.rue > 0
 
     def install(self, row, column):
         self.row = row
@@ -335,35 +317,39 @@ class Batiment(object):
         collision_row = test_rows(r)
         return collision_column and collision_row
 
-    def must_connect(self, row, column):
+    def try_connect(self, row, column):
         """
         on teste si il existe une route autour du bât à la position (r, c)
         """
 
         def test_is_route(r, c):
+            # print("test_is_route>", r, c)
             b = find_batiment(r, c)
             if b is None: return False
             return b.is_route()
 
+        # print("try_connect>", row, column)
         # rangée au dessus du bât
         if test_is_route(row - 1, column - 1): return True
-        for cc in range(self.columns + 1):
+        for cc in range(self.columns):
             if test_is_route(row - 1, column + cc): return True
-        if test_is_route(row - 1, column + 1): return True
+        if test_is_route(row - 1, column + self.columns): return True
 
         # colonne à gauche du bât
-        for rr in range(self.rows + 1):
+        for rr in range(self.rows):
             if test_is_route(row + rr, column - 1): return True
 
         # colonne à droite du bât
-        for rr in range(self.rows + 1):
-            if test_is_route(row + rr, column + self.columns + 1): return True
+        for rr in range(self.rows):
+            if test_is_route(row + rr, column + self.columns): return True
 
         # rangée en dessous du bât
-        if test_is_route(row + self.rows + 1, column - 1): return True
-        for cc in range(self.columns + 1):
-            if test_is_route(row + self.rows + 1, column + cc): return True
-        if test_is_route(row + self.rows + 1, column + 1): return True
+        if test_is_route(row + self.rows, column - 1): return True
+        for cc in range(self.columns):
+            if test_is_route(row + self.rows, column + cc): return True
+        if test_is_route(row + self.rows, column + self.columns): return True
+
+        return False
 
 
     def set_tag(self, tag):
@@ -623,11 +609,18 @@ class Jeu(tk.Tk):
             return x, y
 
         def action(mode, e):
+            """
+            Ceci est activé à chaque déplacement de la souris (mais aussi au "up")
+            """
             x, y = scrolling(e)
 
             if self.select_batiment != None:
+                # on a fait "change" sur un bâtiment existant
                 return
-            elif self.batiment == None:
+
+            if self.batiment == None:
+                # on n'a pas d'action en route
+                # est-on sur une case d'un terrain actif ?
                 result = get_case(x, y)
 
                 if result == None: return
@@ -641,16 +634,16 @@ class Jeu(tk.Tk):
                     self.combo_id.set(found.id)
                     self.combo_rows.set(found.rows)
                     self.combo_columns.set(found.columns)
-                    self.combo_type.set(Data['types'][found.type])
-                    self.combo_connected.set(Data['connection'][found.connected])
+                    self.combo_type.set(Data['realtypes'][found.type])
+                    self.combo_rue.set(found.rue)
                     return
 
                 self.combo_nom.set('')
                 self.combo_id.set('')
                 self.combo_rows.set('')
                 self.combo_columns.set('')
-                self.combo_type.set(Data['types'][0])
-                self.combo_connected.set("non")
+                self.combo_type.set(Data['realtypes'][0])
+                self.combo_rue.set(0)
 
                 return
 
@@ -684,8 +677,6 @@ class Jeu(tk.Tk):
 
             # print("after get_case> ", "r=", r, "c=", c, "tr=", tr, "tc=", tc, "type=", bat_type)
 
-            nonconnecte = Data['types'].index('Autre Non Connecté')
-
             if not self.batiment.is_terrain():
                 # print("on positionne un batiment")
                 tr_vrai, tc_vrai = get_terrain_vrai(tr, tc)
@@ -699,9 +690,9 @@ class Jeu(tk.Tk):
                         # print("collision entre ", b.id, b.nom, "et", self.batiment.id, self.batiment.nom)
                         return
 
-                    if b.type != nonconnecte:
-                        if not b.must_connect(r, c):
-                            return
+                if self.batiment.rue > 0:
+                    if not self.batiment.try_connect(r, c):
+                        return
 
                 # Mise en place d'un batiment normal
                 if self.moving_case != None:
@@ -784,8 +775,8 @@ class Jeu(tk.Tk):
             self.combo_id.set('')
             self.combo_rows.set('')
             self.combo_columns.set('')
-            self.combo_type.set(Data['types'][0])
-            self.combo_connected.set("non")
+            self.combo_type.set(Data['realtypes'][0])
+            self.combo_rue.set(0)
             """
 
         self.popup_event = None
@@ -812,7 +803,7 @@ class Jeu(tk.Tk):
             r, c, tr, tc = result
             b = find_batiment(r, c)
             if not b.is_terrain():
-                b = Batiment(b.nom, b.rows, b.columns, Data['types'][b.type])
+                b = Batiment(b.nom, b.rows, b.columns, Data['reatypes'][b.type])
                 self.batiment = b
 
         def command_change():
@@ -827,8 +818,8 @@ class Jeu(tk.Tk):
                 self.combo_id.set(b.id)
                 self.combo_rows.set(b.rows)
                 self.combo_columns.set(b.columns)
-                self.combo_type.set(Data['types'][b.type])
-                self.combo_connected.set(Data['connection'][b.connected])
+                self.combo_type.set(Data['realtypes'][b.type])
+                self.combo_rue.set(b.rue)
 
         def command_pop():
             def find_pop_position(b):
@@ -933,10 +924,12 @@ class Jeu(tk.Tk):
         def install():
             self.up()
             n = self.combo_nom.get()
+
             try:
                 r = int(self.combo_rows.get())
             except:
                 r = 0
+
             try:
                 c = int(self.combo_columns.get())
             except:
@@ -944,11 +937,15 @@ class Jeu(tk.Tk):
 
             t = self.combo_type.get()
 
-            connected = self.combo_connected.get()
+            try:
+                rue = int(self.combo_rue.get())
+            except:
+                rue = 0
+
 
             if n != '' and r > 0 and c > 0:
                 #print("install> ", "nom=", n, "rows=", r, "columns=", c)
-                self.batiment = Batiment(n, r, c, t, connected)
+                self.batiment = Batiment(n, r, c, t, rue)
 
         def install_terrain():
             self.up()
@@ -963,14 +960,15 @@ class Jeu(tk.Tk):
             if self.select_batiment != None:
                 b = self.select_batiment
                 nom = self.combo_nom.get()
-                # rows = self.combo_rows.get()
-                # columns = self.combo_columns.get()
+                rows = self.combo_rows.get()
+                columns = self.combo_columns.get()
                 type = self.combo_type.get()
-                connected = self.combo_connected.get()
+                rue = self.combo_rue.get()
                 b.nom = nom
                 # b.rows = rows
                 # b.columns = columns
-                b.type = Data['types'].index(type)
+                b.rue = rue
+                b.type = Data['realtypes'].index(type)
                 b.draw(self.dessin, Data['margin'])
             self.select_batiment = None
             self.batiment = None
@@ -979,48 +977,65 @@ class Jeu(tk.Tk):
         combo_frame.grid(row=1, column=0)
 
         row = 0
+        column = 0
+
         self.combo_nom = tk.StringVar()
-        ttk.Label(combo_frame, text='Nom:').grid(column=0, row=row, sticky=tk.W)
-        ttk.Entry(combo_frame, width=30, textvariable=self.combo_nom).grid(column=1, row=row, columnspan=3, sticky=tk.W)
+        ttk.Label(combo_frame, text='Nom:').grid(column=column, row=row, sticky=tk.W)
+        column += 1
+        ttk.Entry(combo_frame, width=30, textvariable=self.combo_nom).grid(column=column, row=row, columnspan=3, sticky=tk.W)
+        column += 1
 
         self.combo_id = tk.StringVar()
-        ttk.Label(combo_frame, text='Id:').grid(column=4, row=row, sticky=tk.W)
-        ttk.Entry(combo_frame, width=5, textvariable=self.combo_id).grid(column=5, row=row, sticky=tk.W)
+        ttk.Label(combo_frame, text='Id:').grid(column=column, row=row, sticky=tk.W)
+        column += 1
+        ttk.Entry(combo_frame, width=5, textvariable=self.combo_id).grid(column=column, row=row, sticky=tk.W)
+        column += 1
 
         row += 1
+        column = 0
 
         self.combo_rows = tk.StringVar()
-        ttk.Label(combo_frame, text='rows:').grid(column=0, row=row, sticky=tk.W)
-        ttk.Entry(combo_frame, width=8, textvariable=self.combo_rows).grid(column=1, row=row, sticky=tk.W)
+        ttk.Label(combo_frame, text='rows:').grid(column=column, row=row, sticky=tk.W)
+        column += 1
+        ttk.Entry(combo_frame, width=8, textvariable=self.combo_rows).grid(column=column, row=row, sticky=tk.W)
+        column += 1
 
         self.combo_columns = tk.StringVar()
-        ttk.Label(combo_frame, text='columns:').grid(column=2, row=row, sticky=tk.W)
-        ttk.Entry(combo_frame, width=8, textvariable=self.combo_columns).grid(column=3, row=row, sticky=tk.W)
+        ttk.Label(combo_frame, text='columns:').grid(column=column, row=row, sticky=tk.W)
+        column += 1
+        ttk.Entry(combo_frame, width=8, textvariable=self.combo_columns).grid(column=column, row=row, sticky=tk.W)
+        column += 1
+
+        self.combo_rue = tk.StringVar()
+        ttk.Label(combo_frame, text='rue:').grid(column=column, row=row, sticky=tk.W)
+        column += 1
+        ttk.Entry(combo_frame, width=8, textvariable=self.combo_rue).grid(column=column, row=row, sticky=tk.W)
+        column += 1
 
         row += 1
+        column = 0
 
         self.combo_type = tk.StringVar()
-        ttk.Label(combo_frame, text='type:').grid(column=0, row=row, sticky=tk.W)
+        ttk.Label(combo_frame, text='type:').grid(column=column, row=row, sticky=tk.W)
+        column += 1
         combo = ttk.Combobox(combo_frame, textvariable=self.combo_type)
-        combo['values'] = Data['types']
+        combo['values'] = Data['realtypes']
         combo['state'] = 'readonly'
         combo.current(newindex=0)
-        combo.grid(column=1, row=row, sticky=tk.W)
-
-        self.combo_connected = tk.StringVar()
-        ttk.Label(combo_frame, text='connected:').grid(column=2, row=row, sticky=tk.W)
-        combo = ttk.Combobox(combo_frame, textvariable=self.combo_connected)
-        combo['values'] = ['Non', 'Oui']
-        combo['state'] = 'readonly'
-        combo.current(newindex=0)
-        combo.grid(column=3, row=row, sticky=tk.W)
+        combo.grid(column=column, row=row, sticky=tk.W)
+        column += 1
 
         row += 1
+        column = 0
 
-        ttk.Button(combo_frame, text="Terrain", command=install_terrain).grid(column=0, row=row, sticky=tk.W)
-        ttk.Button(combo_frame, text="Install", command=install).grid(column=1, row=row, sticky=tk.W)
-        ttk.Button(combo_frame, text="Change", command=change_batiment).grid(column=2, row=row, sticky=tk.W)
-        # ttk.Button(combo_frame, text="Essais", command=self.open_essais).grid(column=3, row=row, sticky=tk.W)
+        ttk.Button(combo_frame, text="Terrain", command=install_terrain).grid(column=column, row=row, sticky=tk.W)
+        column += 1
+        ttk.Button(combo_frame, text="Install", command=install).grid(column=column, row=row, sticky=tk.W)
+        column += 1
+        ttk.Button(combo_frame, text="Change", command=change_batiment).grid(column=column, row=row, sticky=tk.W)
+        column += 1
+        # ttk.Button(combo_frame, text="Essais", command=self.open_essais).grid(column=column, row=row, sticky=tk.W)
+        # column += 1
 
     def configure_quit(self):
         quit_frame = tk.Frame(self)
@@ -1116,65 +1131,13 @@ if __name__ == '__main__':
 
         alltypes = []
 
+        """
         for id in Data['batiments']:
             b = Data['batiments'][id]
 
-            print(b)
-
-            """
-            route = Data['types'].index('Route')
-            if b.type == route or b.is_terrain():
-                pass
-            elif hasattr(b, "saved") and b.saved:
-                # print("déjà configuré", b.nom, b.id, b.att_columns, b.att_rows, b.att_type)
-                pass
-            else:
-                print(b)
-                if b.attributs(b.nom):
-                    b.saved = True
-                    with open('data.pickle', 'wb') as f:
-                        pickle.dump(Data, f, pickle.HIGHEST_PROTOCOL)
-            """
-        # print(alltypes)
-
-        """
-        Data['connection'] = ['non', 'oui']
-
-        connected = Data['types'].index('Autre Connecté')
-        notconnected = Data['types'].index('Autre Non Connecté')
-        route = Data['types'].index('Route')
-        hotel = Data['types'].index('Hotel de Ville')
-        for id in Data['batiments']:
-            b = Data['batiments'][id]
-            if b.type == connected:
-                b.connected = 1
-            elif b.type == notconnected:
-                b.connected = 0
-            elif b.type == route:
-                b.connected = 0
-            elif b.type == hotel:
-                b.connected = 0
-            else:
-                b.connected = 1
-
-        for id in Data['batiments']:
-            b = Data['batiments'][id]
-            connecte = Data['types'].index('Autre Connecté')
-            if b.rows == 1 and b.columns == 1 and b.type == connecte:
-                b.type = Data['types'].index('Autre Non Connecté')
-
-        Data['types'] = ['Habitation', 'Militaire', 'Production', 'Marchandise', 'Culture', 'Décoration', 'Route', 'GM',
-                        'Hotel de Ville', 'Autre Connecté', 'Autre Non Connecté']
-        Data['colors'] = ['cyan', 'orange', 'DodgerBlue2', 'yellow', 'snow', 'green2', 'gray50', 'hot pink', 'red',
-                         'purple1', 'MediumPurple2',]
-        Data['size'] = 16
-        Data['margin'] = 30
+            # print(b)
         """
 
-        """
-        for id in Data:
-            print(id)
-        """
     except:
         pass
 
