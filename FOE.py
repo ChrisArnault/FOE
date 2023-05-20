@@ -566,7 +566,7 @@ class Jeu(tk.Tk):
         if self.batiment != None:
             # on est en train de déplacer un bâtiment
             objs = self.dessin.find_withtag(self.batiment.tag())
-            # print("Moving2> tag=", self.batiment.tag(), "objs=", objs)
+            print("Up> tag=", self.batiment.tag(), "objs=", objs)
             for obj in objs:
                 self.dessin.delete(obj)
 
@@ -574,7 +574,8 @@ class Jeu(tk.Tk):
                 print("up> Install batiment> r=", r, "c=", c)
                 self.batiment.install(r, c)
 
-            self.batiment.draw(self.dessin, Data['margin'])
+            if self.batiment.column is not None:
+                self.batiment.draw(self.dessin, Data['margin'])
 
         # print("removing bat", n)
         self.batiment = None
@@ -729,7 +730,7 @@ class Jeu(tk.Tk):
             # animation sous la souris, anciennes valeurs
             global ex, ey
 
-            # print("moving...", self.batiment.id, self.batiment.nom, self.saved_position)
+            print("moving...", self.batiment.id, self.batiment.nom, self.saved_position)
 
             if self.moving == None:
                 self.moving = self.batiment.draw(self.dessin, Data['margin'], x, y)
@@ -1004,11 +1005,13 @@ class Jeu(tk.Tk):
         self.dessin.config(scrollregion=self.dessin.bbox("all"))
 
     def reset(self):
-        # print("reset>")
+        print("reset>")
 
         if self.saved_position is not None:
             (r, c) = self.saved_position
             self.up(r, c)
+        else:
+            self.up()
 
         self.moving == None
         self.batiment = None
@@ -1148,8 +1151,6 @@ class Jeu(tk.Tk):
         ttk.Button(combo_frame, text="Bâtiment", command=install).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
         ttk.Label(combo_frame, text='Action').grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
-        column += 1
-        ttk.Button(combo_frame, text="Reset", command=self.reset).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
         ttk.Button(combo_frame, text="Change", command=change_batiment).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
