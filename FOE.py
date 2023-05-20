@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import ttk
 import requests
 import re
+import time
 
 
 """
@@ -141,18 +142,21 @@ def find_batiment(r, c):
 
     i = rows * tr + tc
 
-    if terrains_possibles[i] == 0: return None
+    if terrains_possibles[i] == 0:
+        # print("find_batiment> out")
+        return None
 
     found = None
     for id in Data['batiments']:
         b = Data['batiments'][id]
         if not b.is_terrain():
             try:
-                if r >= b.row and r < b.row + b.rows and c >= b.column and c < b.column + b.columns:
+                if r >= b.row and r < (b.row + b.rows) and c >= b.column and c < (b.column + b.columns):
+                    print("find_batiment> ", b.id, b.nom, r, c)
                     found = b
                     break
             except:
-                # print("Erreur dans fin_batiment> id=", id)
+                print("Erreur dans find_batiment> id=", id)
                 return None
 
     if found == None:
@@ -160,6 +164,7 @@ def find_batiment(r, c):
             b = Data['batiments'][id]
             if b.is_terrain():
                 if r >= b.row and r < b.row + b.rows and c >= b.column and c < b.column + b.columns:
+                    print("find_batiment> (terrain) ", b.id, r, c)
                     found = b
                     break
 
@@ -171,21 +176,26 @@ class Batiment(object):
         self.nom = nom           # le nom
         self.id = None
 
-        if type == "Terrain":
-            self.type = Data['realtypes'].index(type)
+        if nom == "Terrain":
+            self.type = Data['realtypes'].index(nom)
             self.rows = 4  # nombre de lignes occupées par ce bât
             self.columns = 4  # nombre de colonnes occupées par ce bât
             self.rue = 0
-        elif type == "Route":
-            self.type = Data['realtypes'].index(type)
+        elif nom == "Route":
+            self.type = Data['realtypes'].index(nom)
             self.rows = 1  # nombre de lignes occupées par ce bât
             self.columns = 1  # nombre de colonnes occupées par ce bât
             self.rue = 0
-        elif type == "DoubleRoute":
-            self.type = Data['realtypes'].index(type)
+        elif nom == "DoubleRoute":
+            self.type = Data['realtypes'].index(nom)
             self.rows = 2  # nombre de lignes occupées par ce bât
             self.columns = 2  # nombre de colonnes occupées par ce bât
             self.rue = 0
+        elif nom == "Hôtel de ville":
+            self.type = Data['realtypes'].index(nom)
+            self.rows = 6  # nombre de lignes occupées par ce bât
+            self.columns = 7  # nombre de colonnes occupées par ce bât
+            self.rue = 1
         else:
             if not self.attributs(nom):
                 Error("Impossible d'obtenir les attributs pour le bâtiment " + nom)
@@ -264,20 +274,36 @@ class Batiment(object):
             title = t
         """
 
-        prefix = "https://fr.wiki.forgeofempires.com/index.php?title="
+        delay = 10
+        while True:
+            prefix = "https://fr.wiki.forgeofempires.com/index.php?title="
 
-        response = requests.get(prefix + title + " - Niv. 1")
-        if response.status_code == 404:
-            response = requests.get(prefix + title)
+            response = requests.get(prefix + title + " - Niv. 1")
             if response.status_code == 404:
-                print("Attributs inaccessibles nom =", title)
-                return False
+                response = requests.get(prefix + title + " - active")
+                if response.status_code == 404:
+                    response = requests.get(prefix + title)
+                    if response.status_code == 404:
+                        print("Attributs inaccessibles nom =", title)
+                        return False
 
-        s = response.content.decode('utf-8')
-        rue(s)
-        taille(s)
-        type(s)
-        print("Attributs> name='{}' rue='{}' RxC='{}x{}' Type={}".format(self.nom, self.rue, self.rows, self.columns, self.type))
+            s = response.content.decode('utf-8')
+            rue(s)
+            taille(s)
+            type(s)
+            if self.rows > 0 and self.columns > 0: break
+
+            # on n'a pas pu obtenir les attributs pour ce bâtiment
+            time.sleep(delay)
+            delay *= 2
+            if delay > 20:
+                Error("Time out: {} Attributs inaccessibles nom =".format(delay, title))
+                return False
+            Error("Retry")
+            continue
+
+        type_text = Data['realtypes'][self.type]
+        Error("Attributs> name='{}' rue='{}' RxC='{}x{}' Type={}".format(self.nom, self.rue, self.rows, self.columns, type_text))
         return True
 
     def __repr__(self):
@@ -343,12 +369,15 @@ class Batiment(object):
         """
         on teste si il existe une route autour du bât à la position (r, c)
         """
-
         def test_is_route(r, c):
             # print("test_is_route>", r, c)
             b = find_batiment(r, c)
-            if b is None: return False
-            return b.is_route()
+            if b is None:
+                # print("   > pas de bâtiment")
+                return False
+            is_route = b.is_route()
+            # print("   > {} {} is route {}".format(b.id, Data['realtypes'][b.type], is_route))
+            return is_route
 
         # print("try_connect>", row, column)
         # rangée au dessus du bât
@@ -511,8 +540,16 @@ class Jeu(tk.Tk):
         self.batiment = None
         self.select_batiment = None
         self.moving = None
+        self.saved_position = None
         self.moving_case = None
         self.essais_canvas = None
+
+        self.bind('<KeyPress>', self.key_press)
+
+    def key_press(self, e):
+        print("Key press", e)
+        if e.keycode == 27:
+            self.reset()
 
     def canvas_geometry(self):
         full_width = Data['geom_width']
@@ -534,7 +571,7 @@ class Jeu(tk.Tk):
                 self.dessin.delete(obj)
 
             if r != None:
-                # print("Install batiment> r=", r, "c=", c)
+                print("up> Install batiment> r=", r, "c=", c)
                 self.batiment.install(r, c)
 
             self.batiment.draw(self.dessin, Data['margin'])
@@ -546,6 +583,7 @@ class Jeu(tk.Tk):
         self.moving = None
         self.dessin.delete(self.moving_case)
         self.moving_case = None
+        self.saved_position = None
 
     def open_essais(self):
         essais = tk.Toplevel(self)
@@ -650,6 +688,8 @@ class Jeu(tk.Tk):
             """
             x, y = scrolling(e)
 
+            # print("action>", self.batiment, self.select_batiment)
+
             if self.select_batiment != None:
                 # on a fait "change" sur un bâtiment existant
                 return
@@ -665,7 +705,7 @@ class Jeu(tk.Tk):
                 found = find_batiment(r, c)
 
                 if found != None:
-                    # print("moving...", found.id, found.nom)
+                    # print("found batiment", found.id, found.nom, found.row, found.column)
                     self.combo_nom.set(found.nom)
                     self.combo_id.set(found.id)
                     self.combo_rows.set(found.rows)
@@ -687,12 +727,14 @@ class Jeu(tk.Tk):
             # animation sous la souris, anciennes valeurs
             global ex, ey
 
+            # print("moving...", self.batiment.id, self.batiment.nom, self.saved_position)
+
             if self.moving == None:
                 self.moving = self.batiment.draw(self.dessin, Data['margin'], x, y)
             else:
+                # print("move bat>", "x=", x, "y=", y)
                 objs = self.dessin.find_withtag(self.batiment.tag())
                 for obj in objs:
-                    # print("move bat>", "x=", x, "y=", y)
                     self.dessin.move(obj, x - ex, y - ey)
 
             ex = x
@@ -712,7 +754,7 @@ class Jeu(tk.Tk):
 
             r, c, tr, tc = result
 
-            # print("after get_case> ", "r=", r, "c=", c, "tr=", tr, "tc=", tc, "type=", bat_type)
+            # print("moving - after get_case> ", "r=", r, "c=", c, "tr=", tr, "tc=", tc, "nom=", n)
 
             if not self.batiment.is_terrain():
                 # print("on positionne un batiment")
@@ -724,8 +766,9 @@ class Jeu(tk.Tk):
                     b = Data['batiments'][id]
                     if b.is_terrain(): continue
                     if b.collision(self.batiment, r, c):
-                        # print("collision entre ", b.id, b.nom, "et", self.batiment.id, self.batiment.nom)
+                        # print("moving - collision entre ", b.id, b.nom, "et", self.batiment.id, self.batiment.nom)
                         return
+                # print("moving - pas de collision")
 
                 if self.batiment.rue > 0:
                     if not self.batiment.try_connect(r, c):
@@ -828,6 +871,8 @@ class Jeu(tk.Tk):
             b = find_batiment(r, c)
             if not b.is_terrain():
                 self.batiment = b
+                print("command_move> ", b.nom, b.row, b.column)
+                self.saved_position = (b.row, b.column)
                 b.row = None
                 b.column = None
                 b.undraw(self.dessin)
@@ -840,7 +885,7 @@ class Jeu(tk.Tk):
             r, c, tr, tc = result
             b = find_batiment(r, c)
             if not b.is_terrain():
-                b = Batiment(b.nom, b.rows, b.columns, Data['reatypes'][b.type])
+                b = Batiment(b.nom, b.rows, b.columns, Data['realtypes'][b.type])
                 self.batiment = b
 
         def command_change():
@@ -851,12 +896,19 @@ class Jeu(tk.Tk):
             b = find_batiment(r, c)
             if not b.is_terrain():
                 self.select_batiment = b
+                b.attributs(b.nom)
                 self.combo_nom.set(b.nom)
                 self.combo_id.set(b.id)
                 self.combo_rows.set(b.rows)
                 self.combo_columns.set(b.columns)
                 self.combo_type.set(Data['realtypes'][b.type])
                 self.combo_rue.set(b.rue)
+
+            for id in Data['batiments']:
+                b2 = Data['batiments'][id]
+                if b2 != b and b2.nom == b.nom:
+                    b2.attributs(b.nom)
+                    b2.draw(self.dessin, Data['margin'])
 
         def command_pop():
             def find_pop_position(b):
@@ -956,6 +1008,37 @@ class Jeu(tk.Tk):
 
         self.dessin.config(scrollregion=self.dessin.bbox("all"))
 
+    def reset(self):
+        # print("reset>")
+
+        if self.saved_position is not None:
+            (r, c) = self.saved_position
+            self.up(r, c)
+
+        """
+        if self.batiment != None:
+            # on est en train de déplacer un bâtiment
+            objs = self.dessin.find_withtag(self.batiment.tag())
+            print("Reset> tag=", self.batiment.tag(), "objs=", objs, self.saved_position)
+            for obj in objs:
+                self.dessin.delete(obj)
+
+            if self.saved_position is not None:
+                (r, c) = self.saved_position
+
+                self.batiment.row = r
+                self.batiment.column = c
+
+                if r != None:
+                    print("reset> Install batiment> r=", r, "c=", c)
+                    self.batiment.install(r, c)
+
+                self.batiment.draw(self.dessin, Data['margin'])
+        """
+        self.moving == None
+        self.batiment = None
+        self.saved_position = None
+
     def configure_combo(self):
 
         def install():
@@ -997,12 +1080,6 @@ class Jeu(tk.Tk):
 
             # print("install> terrain")
             self.batiment = Terrain()
-
-        def reset():
-            # print("reset>")
-            # self.up()
-            self.moving == None
-            self.batiment = None
 
         def change_batiment():
             if self.select_batiment != None:
@@ -1090,7 +1167,7 @@ class Jeu(tk.Tk):
         column += 1
         ttk.Label(combo_frame, text='Action').grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
-        ttk.Button(combo_frame, text="Reset", command=reset).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
+        ttk.Button(combo_frame, text="Reset", command=self.reset).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
         ttk.Button(combo_frame, text="Change", command=change_batiment).grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
@@ -1197,17 +1274,26 @@ class Jeu(tk.Tk):
 
 
 def Error(text):
-    jeu.combo_error.set(text)
+    try:
+        jeu.combo_error.set(text)
+    except:
+        print(text)
 
+
+def save():
+    with open('data.pickle', 'wb') as f:
+        pickle.dump(Data, f, pickle.HIGHEST_PROTOCOL)
 
 if __name__ == '__main__':
     try:
         with open('data.pickle', 'rb') as f:
             Data = pickle.load(f)
 
-        alltypes = []
-
         """
+        for id in Data['batiments']:
+            b = Data['batiments'][id]
+        """
+
         Data['realtypes'] = ['Bâtiments résidentiels',
                       'Bâtiments militaires',
                       'Bâtiments de production',
@@ -1216,7 +1302,7 @@ if __name__ == '__main__':
                       'Décorations',
                       'Route',
                       'Grand Monument',
-                      'Hotel de Ville',
+                      'Hôtel de ville',
                       'Tour',
                       'Bâtiment à production aléatoire',
                       'Autre',
@@ -1225,23 +1311,24 @@ if __name__ == '__main__':
                       ]
 
         Data['colors'] = ['cyan',           # Bâtiments résidentiels
-               'orange',         # Bâtiments militaires
-               'DodgerBlue2',    # Bâtiments de production
-               'yellow',         # Bâtiments de marchandises
-               'snow',           # Bâtiments culturels
-               'green2',         # Décorations
-               'gray50',         # Route
-               'hot pink',       # Grand Monument
-               'red',            # Hotel de Ville
-               'MediumPurple1',  # Tour
-               'MediumPurple3',         # Bâtiment à production aléatoire
-               'gray50',         # Autre
-               'gray80',         # Terrain
-               'gray50',]       # DoubleRoute
+               'orange',          # Bâtiments militaires
+               'DodgerBlue2',     # Bâtiments de production
+               'yellow',          # Bâtiments de marchandises
+               'gold2',           # Bâtiments culturels
+               'green2',          # Décorations
+               'gray50',          # Route
+               'hot pink',        # Grand Monument
+               'pink3',           # Hôtel de ville
+               'MediumPurple1',   # Tour
+               'MediumPurple3',   # Bâtiment à production aléatoire
+               'LightSteelBlue3', # Autre
+               'brown1',          # Terrain
+               'gray50',]         # DoubleRoute
 
-        Data['color_terrain'] = "gray80"
-        Data['color_terrain_vide'] = "gray99"
-        """
+        Data['color_terrain'] = "brown1"
+        Data['color_terrain_vide'] = "gray85"
+
+        save()
 
     except:
         pass
