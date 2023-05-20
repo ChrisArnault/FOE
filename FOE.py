@@ -711,6 +711,7 @@ class Jeu(tk.Tk):
                     self.combo_rows.set(found.rows)
                     self.combo_columns.set(found.columns)
                     self.combo_type.set(Data['realtypes'][found.type])
+                    self.change_color(Data['colors'][found.type])
                     self.combo_rue.set(found.rue)
                     return
 
@@ -719,6 +720,7 @@ class Jeu(tk.Tk):
                 self.combo_rows.set('')
                 self.combo_columns.set('')
                 self.combo_type.set('')
+                self.change_color(Data['colors'][0])
                 self.combo_rue.set(0)
 
                 return
@@ -850,14 +852,6 @@ class Jeu(tk.Tk):
 
         def leave(e):
             if self.select_batiment != None: return
-            """
-            self.combo_nom.set('')
-            self.combo_id.set('')
-            self.combo_rows.set('')
-            self.combo_columns.set('')
-            self.combo_type.set(Data['realtypes'][0])
-            self.combo_rue.set(0)
-            """
 
         self.popup_event = None
         popup = tk.Menu(self, tearoff=0)
@@ -902,6 +896,7 @@ class Jeu(tk.Tk):
                 self.combo_rows.set(b.rows)
                 self.combo_columns.set(b.columns)
                 self.combo_type.set(Data['realtypes'][b.type])
+                self.change_color(Data['colors'][b.type])
                 self.combo_rue.set(b.rue)
 
             for id in Data['batiments']:
@@ -1015,29 +1010,13 @@ class Jeu(tk.Tk):
             (r, c) = self.saved_position
             self.up(r, c)
 
-        """
-        if self.batiment != None:
-            # on est en train de déplacer un bâtiment
-            objs = self.dessin.find_withtag(self.batiment.tag())
-            print("Reset> tag=", self.batiment.tag(), "objs=", objs, self.saved_position)
-            for obj in objs:
-                self.dessin.delete(obj)
-
-            if self.saved_position is not None:
-                (r, c) = self.saved_position
-
-                self.batiment.row = r
-                self.batiment.column = c
-
-                if r != None:
-                    print("reset> Install batiment> r=", r, "c=", c)
-                    self.batiment.install(r, c)
-
-                self.batiment.draw(self.dessin, Data['margin'])
-        """
         self.moving == None
         self.batiment = None
         self.saved_position = None
+
+    def change_color(self, color):
+        if self.type_label is not None:
+            self.type_label.config(background=color, foreground="black")
 
     def configure_combo(self):
 
@@ -1145,12 +1124,15 @@ class Jeu(tk.Tk):
         self.combo_type = tk.StringVar()
         ttk.Label(combo_frame, text='type:').grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
         column += 1
-        combo = ttk.Combobox(combo_frame, textvariable=self.combo_type)
-        combo['values'] = Data['realtypes']
-        combo['state'] = 'readonly'
-        combo.current(newindex=0)
-        combo.grid(column=column, row=row, columnspan=3, sticky=sticky, padx=4, pady=4)
+        self.combo = ttk.Combobox(combo_frame, textvariable=self.combo_type)
+        self.combo['values'] = Data['realtypes']
+        self.combo['state'] = 'readonly'
+        self.combo.current(newindex=0)
+        self.combo.grid(column=column, row=row, columnspan=3, sticky=sticky, padx=4, pady=4)
         column += 3
+        self.type_label = ttk.Label(combo_frame, text=' ', width=2)
+        self.type_label.grid(column=column, row=row, sticky=sticky, padx=4, pady=4)
+        column += 1
 
         row += 1
         column = 0
