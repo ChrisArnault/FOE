@@ -152,11 +152,11 @@ def find_batiment(r, c):
         if not b.is_terrain():
             try:
                 if r >= b.row and r < (b.row + b.rows) and c >= b.column and c < (b.column + b.columns):
-                    print("find_batiment> ", b.id, b.nom, r, c)
+                    # print("find_batiment> ", b.id, b.nom, r, c)
                     found = b
                     break
             except:
-                print("Erreur dans find_batiment> id=", id)
+                # print("Erreur dans find_batiment> id=", id)
                 return None
 
     if found == None:
@@ -164,7 +164,7 @@ def find_batiment(r, c):
             b = Data['batiments'][id]
             if b.is_terrain():
                 if r >= b.row and r < b.row + b.rows and c >= b.column and c < b.column + b.columns:
-                    print("find_batiment> (terrain) ", b.id, r, c)
+                    # print("find_batiment> (terrain) ", b.id, r, c)
                     found = b
                     break
 
@@ -547,9 +547,14 @@ class Jeu(tk.Tk):
         self.bind('<KeyPress>', self.key_press)
 
     def key_press(self, e):
-        print("Key press", e)
         if e.keycode == 27:
             self.reset()
+        elif e.keycode == 83:
+            Error("Les données sont sauvegardées!")
+            save()
+        elif e.keycode == 81:
+            Error("Good bye!")
+            self.quit()
 
     def canvas_geometry(self):
         full_width = Data['geom_width']
@@ -566,12 +571,12 @@ class Jeu(tk.Tk):
         if self.batiment != None:
             # on est en train de déplacer un bâtiment
             objs = self.dessin.find_withtag(self.batiment.tag())
-            print("Up> tag=", self.batiment.tag(), "objs=", objs)
+            # print("Up> tag=", self.batiment.tag(), "objs=", objs)
             for obj in objs:
                 self.dessin.delete(obj)
 
             if r != None:
-                print("up> Install batiment> r=", r, "c=", c)
+                # print("up> Install batiment> r=", r, "c=", c)
                 self.batiment.install(r, c)
 
             if self.batiment.column is not None:
@@ -730,7 +735,7 @@ class Jeu(tk.Tk):
             # animation sous la souris, anciennes valeurs
             global ex, ey
 
-            print("moving...", self.batiment.id, self.batiment.nom, self.saved_position)
+            # print("moving...", self.batiment.id, self.batiment.nom, self.saved_position)
 
             if self.moving == None:
                 self.moving = self.batiment.draw(self.dessin, Data['margin'], x, y)
@@ -866,7 +871,7 @@ class Jeu(tk.Tk):
             b = find_batiment(r, c)
             if not b.is_terrain():
                 self.batiment = b
-                print("command_move> ", b.nom, b.row, b.column)
+                # print("command_move> ", b.nom, b.row, b.column)
                 self.saved_position = (b.row, b.column)
                 b.row = None
                 b.column = None
@@ -1005,7 +1010,7 @@ class Jeu(tk.Tk):
         self.dessin.config(scrollregion=self.dessin.bbox("all"))
 
     def reset(self):
-        print("reset>")
+        # print("reset>")
 
         if self.saved_position is not None:
             (r, c) = self.saved_position
@@ -1185,8 +1190,8 @@ class Jeu(tk.Tk):
                 pickle.dump(Data, f, pickle.HIGHEST_PROTOCOL)
 
         row = 0
-        ttk.Button(quit_frame, text="Quit", command=quit).grid(column=0, row=row, sticky=tk.W)
-        ttk.Button(quit_frame, text="Save", command=save).grid(column=1, row=row, sticky=tk.W)
+        ttk.Button(quit_frame, text="Quit (q)", command=quit).grid(column=0, row=row, sticky=tk.W)
+        ttk.Button(quit_frame, text="Save (s)", command=save).grid(column=1, row=row, sticky=tk.W)
 
     def configure(self):
         ##----- Création des boutons -----##
