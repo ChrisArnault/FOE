@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os
 import pickle
 import tkinter as tk
 from tkinter import ttk
@@ -1272,7 +1273,7 @@ def save():
     with open('data.pickle', 'wb') as f:
         pickle.dump(Data, f, pickle.HIGHEST_PROTOCOL)
 
-if __name__ == '__main__':
+def main():
     try:
         with open('data.pickle', 'rb') as f:
             Data = pickle.load(f)
@@ -1327,3 +1328,13 @@ if __name__ == '__main__':
     jeu.run()
     # jeu.draw_grid()
 
+
+if __name__ == '__main__':
+    HERE = os.path.normpath(os.path.dirname(__file__)).replace("\\", "/")
+    TOP = os.path.dirname(HERE) + "/FOE"
+
+    print("HERE=", HERE, "TOP=", TOP)
+
+    # os.chdir (HERE)
+
+    main()
