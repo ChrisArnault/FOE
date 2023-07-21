@@ -1,0 +1,15 @@
+
+> mkdir FOE
+> cd FOE
+> python -m venv .
+> Scripts\activate.bat
+> mkdir FOE
+> cd FOE
+> edit __main__.py
+> edit __init__.py
+> pip install --upgrade setuptools wheel
+> pip install --upgrade twine
+> python setup.py sdist bdist_wheel
+> twine check dist/*
+> tar tzf dist\FOE-1.0.0.tar.gz
+> twine upload --repository-url https://test.pypi.org/legacy dist/*

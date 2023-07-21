@@ -1,0 +1,12 @@
+.idea
+FOE.egg-info
+build
+dist
+include
+Lib
+Scripts
+tar
+twine
+
+
+
